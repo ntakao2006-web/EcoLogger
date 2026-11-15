@@ -633,8 +633,11 @@ if len(lte):
     fact('lte_lap_seen', round(float(np.mean(got) * 100), 0), 'ラインを通ってから15秒以内にLTEで点が届いた周の割合（%）')
 
 # ---------- タイヤの滑り（車の向きと進む向き・四輪の車輪速） ----------
-# 車の向きは GyroZ（左回りが正、deg/s）を足し合わせて出し、進む向きは GNSS の位置から出す。その差が車体の横滑り角β。
-# ログの Yaw の列は GNSS の進む向き（方位）で、車の向きではないので使えない。
+# 車の向きは GyroZ（左回りが正、deg/s）を足し合わせて出し、進む向きは受信機の速度の向き（Yaw の列。SDで置き換えたときは
+# NAV-PVT の headMot）から出す。その差が車体の横滑り角β。ログの Yaw の列は GNSS の進む向き（方位）で、車の向きではない。
+# 測位は測った瞬間より約0.2秒遅れて記録に入るので、車の向きはその分だけ前の時刻のものと比べる（2026-11-16）。
+# 前はこの遅れを入れず位置の差から向きを出していたため、回っている間は頭が内を向く側へ「回る速さ×遅れ」だけ多めに出ていた
+# （SUGO 11/8 でふつうのコーナーの中央値 2.6°→ 遅れを入れると 0° 前後。outputs/slip_angle_20261116/）。
 # 舵角が無いと前のタイヤの滑り角が出せないので、アンダーステアは出せない。出せるのは「後ろが出た」向き（βが大きい）だけ。
 # 四輪の車輪速はタイヤの前後の滑り（立ち上がりの後輪の空転・ブレーキで前輪がロックしかけた所）に使う。
 TREAD_F, TREAD_R = CFG.get('tread_m', [1.490, 1.495])      # 前後のトレッド（m）
@@ -644,11 +647,24 @@ def tire_slip():
     d = race
     dt = d.ts.diff().fillna(0).clip(0, 0.05)
     v = (d.GPSSpeed / 3.6).clip(lower=5)
-    psi_raw = np.cumsum(d.GyroZ.fillna(0) * dt)
+    psi_raw = np.cumsum(d.GyroZ.fillna(0) * dt).values
+    dts = d.ts.values
     g = gnss_points(d).copy()
-    g['cog'] = np.degrees(np.unwrap(np.arctan2(g.y.shift(-1) - g.y.shift(1), g.x.shift(-1) - g.x.shift(1)).bfill().ffill()))
+    cog_pos = np.degrees(np.unwrap(np.arctan2(g.y.shift(-1) - g.y.shift(1), g.x.shift(-1) - g.x.shift(1)).bfill().ffill()))
     st = g.lap.isin(normal_laps) & (g.GPSSpeed > 60) & (g.LatAccel.abs() < 0.05) & (g.GyroZ.abs() < 2)
-    fact('yaw_vs_cog', round(float(((g.Yaw - (90 - g.cog) + 180) % 360 - 180)[st].median()), 2), 'Yawの列とGNSSの進む向きの差（直線の中央値、°）。0ならYawは車の向きではない')
+    fact('yaw_vs_cog', round(float(((g.Yaw - (90 - cog_pos) + 180) % 360 - 180)[st].median()), 2), 'Yawの列とGNSSの進む向きの差（直線の中央値、°）。0ならYawは車の向きではない')
+    g['cog'] = np.degrees(np.unwrap(np.radians(-g.Yaw.ffill().bfill().values)))   # 速度の向き（左回りが＋）
+    # 測位が記録に入るまでの遅れ：進む向きの変わる速さが GyroZ に一番よく合うずれ
+    gt = g.ts.values; run_ = (g.GPSSpeed > 50).values
+    chid = np.gradient(g.cog.values, gt)
+    rz = d.GyroZ.fillna(0).values
+    def miss(L_):
+        x_ = np.interp(gt - L_, dts, rz)[run_]; y_ = chid[run_]
+        return np.mean((y_ - x_ * (x_ @ y_) / (x_ @ x_)) ** 2)
+    lags_ = np.arange(0, 0.401, 0.005)
+    LAG = float(lags_[int(np.argmin([miss(L_) for L_ in lags_]))])
+    psi_at = lambda t_: np.interp(t_, dts, psi_raw)            # 時刻 t（STM32の時計）の車の向き
+    g['te'] = g.ts - LAG                                        # 測位を測った時刻
     # コーナー：|横G|>0.3 が1.5秒以上。入る1秒前と出た1秒後で、向きの変化を比べる
     g['in'] = (g.LatAccel.abs() > 0.3) & (g.GPSSpeed > 50)
     g['grp'] = (g['in'] != g['in'].shift()).cumsum()
@@ -662,25 +678,26 @@ def tire_slip():
         pre, post = g.iloc[i0], g.iloc[i1]                    # 入る1秒前・出た1秒後のGNSSの点
         if not (pre.lap in normal_laps and post.lap in normal_laps) or post.ts - pre.ts > t1 - t0 + 2.6: continue
         spans.append((s, pre, post))
-    dpsi = np.array([psi_raw[p2.name] - psi_raw[p1.name] for _, p1, p2 in spans])
+    dpsi = np.array([psi_at(p2.te) - psi_at(p1.te) for _, p1, p2 in spans])
     dcog = np.array([p2.cog - p1.cog for _, p1, p2 in spans])
     K = float(dpsi @ dcog / (dpsi @ dpsi))          # GyroZの倍率（取り付けの傾き・センサーの誤差）
-    psi = psi_raw * K
     # GNSSを使わない出し方：β の変化 = 回る速さ − 横G÷速さ（向きを照らす用）
-    bimu = np.degrees(np.cumsum((np.radians(d.GyroZ.fillna(0) * K) - (-d.LatAccel.fillna(0) * 9.81) / v) * dt))
+    bimu = np.degrees(np.cumsum((np.radians(d.GyroZ.fillna(0) * K) - (-d.LatAccel.fillna(0) * 9.81) / v) * dt)).values
+    bimu_at = lambda t_: np.interp(t_, dts, bimu)
     ev = []
     for s, pre, post in spans:
         turn = 1.0 if s.GyroZ.mean() > 0 else -1.0
-        beta = ((psi[s.index] - psi[pre.name]) - (s.cog - pre.cog)) * turn      # 頭が進む向きより内を向くと正
-        close = ((psi[post.name] - psi[pre.name]) - (post.cog - pre.cog)) * turn # 出たあと戻りきらない分＝誤差の目安
+        p0 = psi_at(pre.te)
+        beta = pd.Series(((psi_at(s.te.values) - p0) * K - (s.cog.values - pre.cog)) * turn, index=s.index)  # 頭が進む向きより内を向くと正
+        close = ((psi_at(post.te) - p0) * K - (post.cog - pre.cog)) * turn      # 出たあと戻りきらない分＝誤差の目安
         im = beta.idxmax(); r0 = s.loc[im]
-        after = d.loc[im: im + 150]                                              # βが最大になってから1.5秒
+        after = d[(dts >= r0.te) & (dts <= r0.te + 1.5)]                        # βが最大になってから1.5秒
         ev.append({'id': r0.t.tz_convert(JST).strftime('%H:%M:%S'), 'time_jst': r0.t.tz_convert(JST).strftime('%H:%M:%S'),
                    'lap': int(r0.lap), 'stint': STINT_OF(int(r0.lap)), 'turn': '左' if turn > 0 else '右',
                    'x': round(float(r0.x), 1), 'y': round(float(r0.y), 1),
                    'speed': round(float(r0.GPSSpeed), 0), 'lat_max': round(float(s.LatAccel.abs().max()), 2),
                    'throttle': round(float(r0.Throttle), 0), 'beta_med': round(float(beta.median()), 1),
-                   'beta_max': round(float(beta.max()), 1), 'beta_imu': round(float((bimu[im] - bimu[pre.name]) * turn), 1),
+                   'beta_max': round(float(beta.max()), 1), 'beta_imu': round(float((bimu_at(r0.te) - bimu_at(pre.te)) * turn), 1),
                    'yaw_back': round(float(max(0.0, -(after.GyroZ * K * turn).min())), 0), 'err': round(float(close), 1)})
     ev = pd.DataFrame(ev)
     _, ii = cKDTree(np.c_[tr.x, tr.y]).query(np.c_[ev.x, ev.y])
@@ -690,6 +707,7 @@ def tire_slip():
     mv = g[g.lap.isin(normal_laps) & (g.GPSSpeed > 60)]
     fact('gnss_pos_rate', round(float(len(mv) / mv.groupby('lap').ts.agg(lambda t: t.iloc[-1] - t.iloc[0]).sum()), 1), '走っている間（60km/h超）に記録の位置が変わった回数（回/秒）')
     fact('bal_k', round(K, 3), 'GyroZの倍率（コーナーの前後の向きの変化をGNSSに合わせた）')
+    fact('bal_lag', round(LAG * 1000), '測位が記録に入るまでの遅れ（ms、進む向きの変わる速さをGyroZに合わせて求めた）。車の向きはこれだけ前の時刻と比べる')
     fact('bal_err', round(float(ev.err.abs().median()), 1), 'コーナーを出たあと向きが戻りきらない角度の中央値（°）＝横滑り角の誤差の目安')
     fact('bal_n', len(ev), '横滑り角を出したコーナーの数（通常の周、横G0.3超が1.5秒以上）')
     fact('bal_beta_med', round(float(ev.beta_med.median()), 1), 'コーナー中の横滑り角の中央値（°、頭が内向きが正）')

@@ -343,7 +343,7 @@
     <div class="sg-card">
       <h3>四輪の車輪速でわかること・わからないこと</h3>
       <p class="sg-p">車輪速はタイヤの前後の滑りしか測れず、横の滑りはわかりません。左右の差から回る速さを出すと、前輪は本当の値の<b data-draw="f" data-source="facts" data-field="text" data-where="key=wheel_yaw_front">—</b>倍（外側のタイヤが荷重でつぶれて速く回るため）、後輪は<b data-draw="f" data-source="facts" data-field="text" data-where="key=wheel_yaw_rear">—</b>倍（内側の後輪が空転するため）になり、そのままでは使えません。使えるのは前後の滑りで、立ち上がりの後輪の空転は中央値<b data-draw="f" data-source="facts" data-field="text" data-where="key=rear_exit_med">—</b>%（上位5%で<b data-draw="f" data-source="facts" data-field="text" data-where="key=rear_exit_p95">—</b>%）、内側の後輪は本来より中央値<b data-draw="f" data-source="facts" data-field="text" data-where="key=inner_med">—</b>km/h速く回っています。0.6Gより強いブレーキで片方の前輪が<b data-draw="f" data-source="facts" data-field="text" data-where="key=lock_th">—</b>%以上遅かった（ロックしかけた）のは、<b data-draw="f" data-source="facts" data-field="text" data-where="key=lock_laps">—</b>周で合計<b data-draw="f" data-source="facts" data-field="text" data-where="key=lock_s">—</b>秒でした。</p>
-      <p class="sg-note">ジャイロの値は、コーナーの前後の向きの変化がGNSSと合うように<span data-draw="f" data-source="facts" data-field="text" data-where="key=bal_k">—</span>倍しています。コーナーを出たあと向きが戻りきらない角度は中央値<span data-draw="f" data-source="facts" data-field="text" data-where="key=bal_err">—</span>°で、これが横滑り角の誤差の目安です。ログのYawの列はGNSSの進む向きそのもの（差<span data-draw="f" data-source="facts" data-field="text" data-where="key=yaw_vs_cog">—</span>°）で、車の向きではありません。GNSSの速さは<span data-draw="f" data-source="facts" data-field="text" data-where="key=gnss_speed_lag">—</span>ms遅れて出るので、前輪と比べる前にずらしています。</p>
+      <p class="sg-note">ジャイロの値は、コーナーの前後の向きの変化がGNSSと合うように<span data-draw="f" data-source="facts" data-field="text" data-where="key=bal_k">—</span>倍しています。コーナーを出たあと向きが戻りきらない角度は中央値<span data-draw="f" data-source="facts" data-field="text" data-where="key=bal_err">—</span>°で、これが横滑り角の誤差の目安です。GNSSの進む向きは、測位してから記録に入るまで<span data-draw="f" data-source="facts" data-field="text" data-where="key=bal_lag">—</span> ms遅れていました（進む向きの変わる速さをジャイロに合わせて求めた値）。車の向きはこれだけ前の時刻と比べています。ログのYawの列はGNSSの進む向きそのもの（差<span data-draw="f" data-source="facts" data-field="text" data-where="key=yaw_vs_cog">—</span>°）で、車の向きではありません。GNSSの速さは<span data-draw="f" data-source="facts" data-field="text" data-where="key=gnss_speed_lag">—</span>ms遅れて出るので、前輪と比べる前にずらしています。</p>
     </div>
     <div class="sg-grid">
       <div class="sg-card">
@@ -400,7 +400,7 @@
       <dt>道のり</dt><dd>ベストの周のGNSSの軌跡を基準の線にし、ほかの周の位置をその線へ寄せて、ラインからの道のりを出しました。どの周も同じ地点どうしで比べています。</dd>
       <dt>コーナーと区間</dt><dd>ベストの周で速度の谷が深い所をC1〜C7としました。区間は、谷と谷の間の速度がいちばん高い点で区切っています。</dd>
       <dt>横Gの向き</dt><dd>横Gとヨーの変化の向きを照らし、プラスが右コーナーと判断しました。</dd>
-      <dt>横滑り角</dt><dd>コーナーに入る1秒前を0として、車の向きの変化（ジャイロの積分）から進む向きの変化（GNSSの位置）を引いたものです。頭が内向きを正としています。後ろのタイヤの滑り角は「横滑り角＋重心から後軸までの長さ÷旋回半径」で、横滑り角が大きいほど後ろが流れています。</dd>
+      <dt>横滑り角</dt><dd>コーナーに入る1秒前を0として、車の向きの変化（ジャイロの積分）から進む向きの変化（GNSSの進む向き）を引いたものです。GNSSの値は記録に入るまで遅れるので、車の向きはその遅れの分だけ前の時刻のものを使います。頭が内向きを正としています。後ろのタイヤの滑り角は「横滑り角＋重心から後軸までの長さ÷旋回半径」で、横滑り角が大きいほど後ろが流れています。</dd>
       <dt>油温・水温（Defi）</dt><dd>センサーハブの電圧からの換算値です。Defiの電源が切れている間と、その前後3秒は使っていません。</dd>
       <dt>入れていないもの</dt><dd>公式の計時との照合（手元に無い）、映像、ドライバーの名前（分からない）、予選の前の走行。</dd>
     </dl>
