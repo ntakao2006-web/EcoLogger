@@ -1,0 +1,33 @@
+{
+ "nav_points_race": 88471,
+ "lag_ms": 225,
+ "K": 0.9655,
+ "mcu_clock_ppm": -2623,
+ "arrival_jitter_p5_p95_ms": [
+  -21.5,
+  19.6
+ ],
+ "up_tilt_deg": 6.3,
+ "headAcc_med_cornering": 0.16,
+ "headAcc_p95_cornering": 0.25,
+ "anchors": 288,
+ "anchor_gap_med_s": 5.5,
+ "anchor_inner_sd_med": 0.12,
+ "gyro_drift_med_deg_s": 0.074,
+ "holdout_err_med_abs": 0.13,
+ "holdout_err_p90_abs": 0.56,
+ "beta_in_med_cornering": -0.1,
+ "beta_in_p95_cornering": 2.14,
+ "alpha_r_in_med_cornering": 0.79,
+ "repeat_sd_med_deg": 0.81,
+ "beta_in_per_G": 1.14,
+ "beta_in_at_0G": -0.98,
+ "alpha_r_in_per_G": 2.24,
+ "lag_used_ms": 225,
+ "lag_gyro_ms": 225,
+ "lag_gyro_with_beta_ms": 225,
+ "geo_free_b_m": 4.36,
+ "geo_free_residual_lag_ms": 175,
+ "geo_bfixed_residual_lag_ms": -34,
+ "geo_bfixed_tire_deg_per_G": 1.82
+}
