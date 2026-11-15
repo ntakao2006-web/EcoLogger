@@ -18,7 +18,7 @@
 | `unoq_overlay_enc/` | **本体の録画のソフト**（走行映像への計器の焼き込み）。本体へ入れるスクリプトがこの場所を見ているので動かさない |
 | `home_telemetry/` | 自宅のサーバーに入れるもの（LTEの値の受け取り・ピットのページ）。`deploy/`の説明は`server_deploy_grafana_x86.md` |
 | `analysis_export/` | 走行記録を解析アプリ（別リポジトリ`ecologger-analysis`）用の形式「ecorun」に書き出す。下に説明 |
-| `dev/` | 開発・調べもの用：`race_replay`（エミュレーターでの走行の再生）・`podium_replay`・`unoq_spi_sd_test`（E-6の試験）・`lte_antenna`（電波の記録。操作メニューの「設定・調べもの」から呼ぶ）・`can1_loss`（車載CANの取りこぼしを数える） |
+| `dev/` | 開発・調べもの用：`race_replay`（エミュレーターでの走行の再生）・`podium_replay`・`unoq_spi_sd_test`（E-6の試験）・`lte_antenna`（電波の記録。操作メニューの「設定・調べもの」から呼ぶ）・`can1_loss`（車載CANの取りこぼしを数える）・`phone_lap_study`（スマホの1Hzの周のタイムの正しさを測る。SP-7-7） |
 
 通話の道具（`voice_gate`・`discord_bridge`）は`archive/voice/`、エコランの記録表は`ecorun/record_sheet/`へ移した（2026-11-13）。
 
