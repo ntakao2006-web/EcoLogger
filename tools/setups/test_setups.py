@@ -12,6 +12,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
+BEACON_LINE = [38.1423181, 140.7779443]   # SUGOの前のコントロールライン（11/7の走行会のビーコンの位置。11/7・11/8の本体はこれで数えた）
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(REPO / 'tools' / 'sugo_setup'))
 sys.path.insert(0, str(REPO / 'RaceCapture-UNOQ'))
@@ -69,13 +70,15 @@ class FilesTest(unittest.TestCase):
         vehicle, course = setups.load('vehicle', 'ncec'), setups.load('course', 'sugo')
         for path in (REPO / 'tools' / 'race_analysis').glob('sugo_*.json'):
             analysis = json.loads(path.read_text(encoding='utf-8'))
-            self.assertEqual(analysis['line'], [course['line']['lat'], course['line']['lon']], path.name)
+            # 2026-11-15にゼブラの線へ移す前の走行は、本体がビーコンの線で周を数えていたので、解析もその線のまま
+            expected = BEACON_LINE if analysis.get('date', '9999') <= '2026-11-08' else [course['line']['lat'], course['line']['lon']]
+            self.assertEqual(analysis['line'], expected, path.name)
             if 'tread_m' in analysis:
                 self.assertEqual(analysis['tread_m'], vehicle['analysis']['tread_m'], path.name)
 
     def test_analysis_can_name_the_course_and_vehicle_instead(self):
         filled = setups.fill_analysis({'name': 'x', 'course': 'sugo', 'vehicle': 'ncec'})
-        self.assertEqual(filled['line'], [38.1423181, 140.7779443])
+        self.assertEqual(filled['line'], [38.1423416, 140.777718])
         self.assertEqual(filled['tread_m'], [1.490, 1.495])
         self.assertEqual(setups.fill_analysis({'line': [1, 2], 'course': 'sugo'})['line'], [1, 2])   # じかに書いた値が勝つ
         self.assertNotIn('line', setups.fill_analysis({'name': 'old'}))

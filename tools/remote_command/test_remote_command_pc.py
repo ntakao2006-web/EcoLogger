@@ -146,7 +146,7 @@ class SendTests(unittest.TestCase):
 
 STATUS = {'logging': True, 'log_s': 600, 'hz': 99.0, 'gnss': True, 'sd': True, 'video': True,
           'lap': {'enabled': True, 'count': 3, 'current': 0, 'running': False, 'finished': False, 'race_min': 12.3}}
-SUGO_LINE = {'name': 'sugo', 'control': [38.1423181, 140.7779443, 97.5, 50.0], 'start': None, 'goal': None,
+SUGO_LINE = {'name': 'sugo', 'control': [38.1423416, 140.777718, 97.5, 50.0], 'start': None, 'goal': None,
              'sectors': 3, 'id': '662D', 'at': None, 'changed': True}
 
 
@@ -188,7 +188,7 @@ class LineTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual((logger.commands[0]['op'], logger.commands[0]['arg']), ('course_select', {'name': 'sugo'}))
         self.assertIn('OK: コースを選ぶ — コースを「sugo」にしました', text)
-        self.assertIn('コントロールライン 38.1423181, 140.7779443・向き 97.5°・幅 50 m・セクターの線 3本', text)
+        self.assertIn('コントロールライン 38.1423416, 140.777718・向き 97.5°・幅 50 m・セクターの線 3本', text)
         self.assertIn('「sugo」と同じ', text)
         self.assertIn('次に通った所からラップを数え直します', text)
         self.assertIn('記録 中 10分', text)   # 記録は止まっていない

@@ -36,12 +36,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'collect_logs'))
 DATA = '/home/arduino/ecocapture-v2-data'
 API = 'http://127.0.0.1:8080'
 
-# task_sugo_20261108_breakdown.md SG-1-3。中心は2026-11-07の走行会でトラポのビーコンが置かれていた位置
+# task_sugo_20261108_breakdown.md SG-1-3。2026-11-15に、路面のゼブラ（チェッカー）の線へ移した（ユーザーがGoogleマップで
+# 指定した点まで進む向きに20.0m手前。左右の位置・向き・幅は前のまま。正はtools/setups/courses/sugo.json）。
+# 11/7・11/8に本体へ入れた前の中心（38.1423181, 140.7779443）は、2026-11-07の走行会でトラポのビーコンが置かれていた位置
 # （ユーザーがGoogleマップで指定）。10/25にOpenStreetMapと航空写真から決めた38.1423587, 140.7770000は約83m手前で、
 # 中心もコースからピット側へ約8mずれていた。向き97.5°は11/7の走行（96〜97°）と合っている。
 # 幅50mはピットレーンを通った周も数えるため。給油で長くなる周があるので最長ラップは既定の1時間のまま。
 SUGO_LINE = {
-    'enabled': True, 'lat': 38.1423181, 'lon': 140.7779443, 'bearing': 97.5, 'width_m': 50.0,
+    'enabled': True, 'lat': 38.1423416, 'lon': 140.777718, 'bearing': 97.5, 'width_m': 50.0,
     'min_lap_s': 60.0, 'max_lap_s': 3600.0,
     'start': None, 'goal': None, 'total_laps': None, 'time_limit_s': None, 'margin_s': None,
     # 線を80km/h以下で右（南、ピット側）の5.5mより外を通ったらピットの通過（EcoCapture-Web/lap.py）。
