@@ -8,8 +8,11 @@
 //   そのときは「今 − 待つ秒」まで戻す。待つ秒は「今 − いちばん新しいサンプルの時刻」の最近の最大（＝値が届くまでの最悪の遅れ）で、
 //   本体で動きながら自分で測る（ゆっくり縮め、上限は dmax）。その分だけ針が景色より遅れる（前の描き方の平均の遅れ約0.1秒より短い）。
 //   STM32の時計と本体の時計（CLOCK_MONOTONIC）の差は「受け取った時刻 − サンプルの時刻」の一番小さいもの（遅れの一番少ないもの）とし、
-//   時計の進みの違い（水晶のずれ）に付いていくよう、1秒に TSM_RELAX 秒ずつ大きい側へゆるめる。この一番小さい遅れ（STM32→本体、
+//   時計の進みの違いに付いていくよう、1秒に「測ったずれの速さ＋TSM_RELAX」秒ずつ動かす。この一番小さい遅れ（STM32→本体、
 //   数ms〜十数ms）の分だけは、針が景色より古いままになる。
+//   ずれの速さ（rate）は TSM_WIN 秒ごとの「一番小さい遅れ」の変わり方から動きながら測る。STM32の時計は内蔵の発振で、
+//   本体の時計より1秒に約2.6ms遅れて進む（−0.26 %、2026-11-16に実測。outputs/mcu_clock_20261116/）。前は「水晶なら1秒に0.1msまで」
+//   として0.5ms/秒だけゆるめていたため追いつけず、差の見積もりが1秒に約2.1msずつ遅れ、針がほぼ補間されていなかった。
 //   使うのは針のメーター・弧・棒・Gボールだけ（hud_draw の vs）。数字・ラップ・コース図は届いた値をそのまま描く。
 // PCの試験：tele_smooth_test.c
 #ifndef TELE_SMOOTH_H
@@ -21,7 +24,10 @@
 #define TSM_MAXV 32
 #endif
 #define TSM_N 16          // ためるサンプルの数（約20個/秒で0.8秒。待つ秒の上限より十分長い）
-#define TSM_RELAX 0.0005  // 時計の差を1秒にこれだけ大きい側へゆるめる（水晶のずれは多くて1秒に0.0001秒。大きいほど針が景色より遅れる）
+#define TSM_RELAX 0.0005  // 測ったずれの速さに足して、時計の差を1秒にこれだけ大きい側へゆるめる（速さの測り損ないの分。大きいほど針が景色より遅れる）
+#define TSM_WIN 4.0       // ずれの速さを測る区切り（秒）。区切りごとの一番小さい遅れどうしの傾き
+#define TSM_RATE_GAIN 0.3 // 区切りごとの傾きを、これだけの割合で今の速さへ混ぜる（1回目はそのまま使う）
+#define TSM_RATE_MAX 0.02 // ずれの速さの上限（1秒に20ms＝2 %。内蔵の発振でもこれより大きくはずれない。途切れなどの外れ値を抑える）
 #define TSM_GAP 0.5       // 前後のサンプルがこれより離れていれば補間しない（途切れのあと。近い方の値を使う）
 #define TSM_SHRINK 0.05   // 待つ秒を1秒にこれだけ縮める（たまの大きな遅れのあと、約数秒で戻る）
 #define TSM_MARGIN 0.005  // 待つ秒に足す余裕
@@ -32,10 +38,35 @@ struct tsm {
     int has_off; double off, off_got;  // 本体の時計 − サンプルの時刻（いちばん遅れの少ないもの）と、それを求めた受け取り時刻
     double wait, wait_at;  // 待つ秒（値が届くまでの最近の最悪の遅れ）と、それを最後に直した時刻
     double behind;         // 最後のコマで、針が景色より遅れた秒（0なら撮った時刻の値）
+    double rate;           // 時計の差が1秒に増える秒（＋ならSTM32の時計が遅れて進む）。動きながら測る
+    int rate_n, win_on, has_prev;
+    double win_t0, win_min, win_min_t, prev_t, prev_min;  // いまの区切りの始まり・一番小さい遅れ・それを受け取った時刻、前の区切りの真ん中と一番小さい遅れ
     struct tsm_s s[TSM_N];
 };
 
-static void tsm_reset(struct tsm *m) { m->n = 0; m->head = 0; m->has_off = 0; m->wait = 0; m->wait_at = 0; m->behind = 0; }
+static void tsm_reset(struct tsm *m) {
+    m->n = 0; m->head = 0; m->has_off = 0; m->wait = 0; m->wait_at = 0; m->behind = 0;
+    m->rate = 0; m->rate_n = 0; m->win_on = 0; m->has_prev = 0;
+}
+
+// ずれの速さ：TSM_WIN 秒ごとに区切り、区切りの中の一番小さい遅れ（got − t）が前の区切りからどれだけ動いたか。
+// 区切りの終わりに、時計の差の見積もりがその区切りの一番小さい遅れ（今まで速さで進めたもの）より小さければ引き上げる
+// （速さを測り終えるまでにたまった外れを、TSM_RELAX だけで戻すと何分もかかるため）
+static void tsm_track_rate(struct tsm *m, double e, double got) {
+    if (!m->win_on) { m->win_on = 1; m->win_t0 = got; m->win_min = e; m->win_min_t = got; return; }
+    if (e < m->win_min) { m->win_min = e; m->win_min_t = got; }
+    if (got - m->win_t0 < TSM_WIN) return;
+    const double mid = (m->win_t0 + got) / 2;
+    if (m->has_prev && mid > m->prev_t) {
+        const double sl = fmax(-TSM_RATE_MAX, fmin(TSM_RATE_MAX, (m->win_min - m->prev_min) / (mid - m->prev_t)));
+        m->rate = m->rate_n ? m->rate + TSM_RATE_GAIN * (sl - m->rate) : sl;
+        m->rate_n++;
+        const double floor_now = m->win_min + m->rate * (got - m->win_min_t);
+        if (floor_now > m->off) m->off = fmin(e, floor_now);
+    }
+    m->prev_t = mid; m->prev_min = m->win_min; m->has_prev = 1;
+    m->win_t0 = got; m->win_min = e; m->win_min_t = got;
+}
 
 static const struct tsm_s *tsm_at(const struct tsm *m, int i) {  // i=0 がいちばん古い
     return &m->s[(m->head - (m->n - 1) + i + TSM_N) % TSM_N];
@@ -53,7 +84,8 @@ static int tsm_push(struct tsm *m, double t, double got, const double *v, int nv
     }
     const double e = got - t;
     if (!m->has_off) { m->off = e; m->has_off = 1; }
-    else m->off = fmin(e, m->off + (got - m->off_got) * TSM_RELAX);
+    else m->off = fmin(e, m->off + (got - m->off_got) * (m->rate + TSM_RELAX));
+    tsm_track_rate(m, e, got);
     m->off_got = got;
     m->head = m->n ? (m->head + 1) % TSM_N : 0;
     if (m->n < TSM_N) m->n++;

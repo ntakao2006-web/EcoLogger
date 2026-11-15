@@ -1271,16 +1271,17 @@ int main(int argc, char **argv) {
         if (f && f % 30 == 0) { hud_check(); lens_check(); }  // 設定ファイルが書き換わっていれば読み直す（約1秒ごと）
         struct tele t; double v[HUD_REFS], vs[HUD_REFS];  // vs：針・弧・棒・Gボール用に補間した値
         const double tnow = now();
-        double sm_wait, sm_behind;
+        double sm_wait, sm_behind, sm_rate;
         pthread_mutex_lock(&tmu); t = tl; memcpy(v, tvals, sizeof v); tsm_frame(&tsmooth, cam_ts, tnow, smooth_s, vs, HUD_REFS);
-        sm_wait = tsmooth.wait; sm_behind = tsmooth.behind;
+        sm_wait = tsmooth.wait; sm_behind = tsmooth.behind; sm_rate = tsmooth.rate;
         pthread_mutex_unlock(&tmu);
-        {  // 1分ごとに journal へ：カメラの絵が撮られてから描くまで・値を待つ秒・針が景色より遅れた秒（平均。手順書5-24）
+        {  // 1分ごとに journal へ：カメラの絵が撮られてから描くまで・値を待つ秒・針が景色より遅れた秒（平均。手順書5-24）・
+           // STM32の時計が本体の時計より遅れて進む割合（ppm、＋が遅れ。2026-11-16の実測は約+2600）
             static double age_sum, behind_sum, behind_max; static int sm_n;
             age_sum += tnow - cam_ts; behind_sum += sm_behind; behind_max = fmax(behind_max, sm_behind); sm_n++;
             if (sm_n >= 1800) {
-                printf("smooth: camera_age %.0f ms, wait %.0f ms, needle_behind_camera avg %.0f ms max %.0f ms\n",
-                       age_sum / sm_n * 1e3, sm_wait * 1e3, behind_sum / sm_n * 1e3, behind_max * 1e3);
+                printf("smooth: camera_age %.0f ms, wait %.0f ms, needle_behind_camera avg %.0f ms max %.0f ms, mcu_clock_slow %+.0f ppm\n",
+                       age_sum / sm_n * 1e3, sm_wait * 1e3, behind_sum / sm_n * 1e3, behind_max * 1e3, sm_rate * 1e6);
                 fflush(stdout); age_sum = behind_sum = behind_max = 0; sm_n = 0;
             }
         }

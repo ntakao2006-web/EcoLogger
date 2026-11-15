@@ -5,7 +5,8 @@
 //   本体での流れを真似る：STM32が10msごとにサンプル → EcoCaptureが約50ms（＋0〜15ms）ごとにまとめて受け取り、最後の1つを
 //   /api/telemetry に出す（受け取りまで2〜8ms）→ overlay_rec が読む（前は0.1秒ごと、今は0.04秒ごと。読むのに2〜6ms）→ 30コマ/秒で描く。
 //   カメラの絵は、描く時刻より「カメラの遅れ」だけ前に撮られている（本体では未測定なので、いくつかの値で試す）。
-//   STM32の時計は本体の時計より 1秒に100μs 速く、差は5秒（どちらも本物より大きくして試す）
+//   STM32の時計は本体の時計より 1秒に約2.6ms 遅れて進む（2026-11-16に実測、outputs/mcu_clock_20261116/）。差は5秒。
+//   ずれの向き・大きさが違う基板もありうるので、±1%（内蔵の発振の精度の目安）と0でも試す
 #include <stdio.h>
 #include <stdlib.h>
 #include "tele_smooth.h"
@@ -28,9 +29,10 @@ static double signal(double tt) {
     return 4000 + 3000 * sin(tt * 0.9) + 300 * sin(tt * 7.3);
 }
 
-#define DRIFT 1.0001
+#define DRIFT_MEASURED 1.0026  // 本体の時計1秒の間に、STM32の時計は 1/1.0026 秒しか進まない
+static double drift = DRIFT_MEASURED;
 #define OFF0 5.0
-static double tt_of(double mono) { return (mono - OFF0) / DRIFT; }  // 本体の時計 → STM32の時刻
+static double tt_of(double mono) { return (mono - OFF0) / drift; }  // 本体の時計 → STM32の時刻
 
 struct result { int frames, frozen; double max_jump, max_truth_jump, lag, rms, behind; };
 
@@ -132,6 +134,23 @@ static void unit_tests(void) {
     for (int i = 0; i < 100; i++) { v = i; tsm_push(&m, i * 0.05, 3 + i * 0.05, &v, 1); }
     CHECK(m.n == TSM_N, "n=%d", m.n);
     tsm_value(&m, 98.5 * 0.05, out, 1); CHECK(fabs(out[0] - 98.5) < 1e-6, "輪の中の補間: %f", out[0]);
+    // 時計のずれの速さを測る：STM32が1秒に2.6ms遅れて進み、受け取りの遅れは2〜8ms（一番小さい遅れは2ms）
+    const double rates[] = { 0.0026, -0.0026, 0.01, -0.01, 0 };
+    for (int k = 0; k < 5; k++) {
+        tsm_reset(&m);
+        double worst = 0;
+        for (double g = 0; g < 120; g += 0.06) {
+            const double t = g * (1 - rates[k]), got = g + 0.002 + rnd() * 0.006;  // STM32の時刻 t、本体が受け取った時刻 got
+            v = g; tsm_push(&m, t, got, &v, 1);
+            const double true_off = (g + 0.002) - t;     // 一番遅れの少ないときの差
+            if (g > 30) worst = fmax(worst, fabs(m.off - true_off));
+        }
+        CHECK(fabs(m.rate - rates[k]) < 0.0004, "ずれの速さ %+.4f を測る: %+.5f", rates[k], m.rate);
+        // 外れの目安：受け取りの遅れのばらつき（6ms）の中。±1 %では区切りの中で速さの測り損ないが少し乗るので6ms
+        const double lim = fabs(rates[k]) < 0.005 ? 0.004 : 0.006;
+        CHECK(worst < lim, "ずれ %+.4f：30秒後からは時計の差の見積もりの外れが%.0fms未満: %.1fms", rates[k], lim * 1000, worst * 1000);
+    }
+    tsm_reset(&m); CHECK(m.rate == 0 && m.rate_n == 0 && !m.win_on, "始め直すと速さも測り直す");
 }
 
 static void show(const char *name, struct result r) {
@@ -180,6 +199,20 @@ int main(int argc, char **argv) {
         if (lats[i] >= 0.10) CHECK(fabs(b.lag) < 0.015, "カメラの遅れが待つ秒より長ければ、景色とほぼ揃う: %.0fms", b.lag * 1000);
         if (i == 1) CHECK(a.frozen > a.frames / 2, "前の描き方は半分以上のコマで止まっていたはず: %d", a.frozen);
     }
+    // 時計のずれが違っても（向きが逆・±1%・ずれ無し）補間が効く（2026-11-16：前は1秒に0.5msまでしか追えず、実際の2.6msで止まるコマが32%になった）
+    const double drifts[] = { DRIFT_MEASURED, 1 / DRIFT_MEASURED, 1.01, 0.99, 1.0 };
+    for (int i = 0; i < 5; i++) {
+        drift = drifts[i];
+        rs = 7; struct result a = run(300, 0.1, -1, 0.06, NULL);
+        rs = 7; struct result b = run(300, 0.04, 0.15, 0.06, NULL);
+        printf("時計のずれ %+.2f%%（カメラの遅れ60ms）：\n", (1 / drift - 1) * 100);
+        show("今（25Hz・撮った時刻）", b);
+        CHECK(b.frozen < b.frames / 500, "ずれ %+.2f%%：補間で止まるコマはほぼ無い: %d", (1 / drift - 1) * 100, b.frozen);
+        CHECK(b.max_jump < b.max_truth_jump * 1.6, "ずれ %+.2f%%：1コマの動き: %.0f / %.0f", (1 / drift - 1) * 100, b.max_jump, b.max_truth_jump);
+        CHECK(b.rms < a.rms, "ずれ %+.2f%%：誤差は前より小さい: %.0f / %.0f", (1 / drift - 1) * 100, b.rms, a.rms);
+        CHECK(b.lag > -0.005 && b.lag < 0.05, "ずれ %+.2f%%：針は景色より先に出ず、遅れも小さい: %.0fms", (1 / drift - 1) * 100, b.lag * 1000);
+    }
+    drift = DRIFT_MEASURED;
     // 読み取りが遅いとき（10Hzのまま）でも、補間なら止まらない
     rs = 7; struct result c = run(120, 0.1, 0.2, 0.06, NULL);
     printf("10Hzで読んで補間（上限0.2秒）：止まったコマ %d/%d、最大の動き %.0f、針が景色より %+.0fms\n", c.frozen, c.frames, c.max_jump, c.lag * 1000);
