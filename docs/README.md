@@ -46,6 +46,7 @@
 - `docs/design/hardware_interface_spec.md`：電気・回路系担当の友人と認識合わせをするための入出力インターフェース仕様書
 - `docs/design/ncec_can_spec.md`：NCEC（本番車両）のCAN通信仕様（ID・バイトマップ・デコード式・OBD2）。実装・共有用の独立ファイル
 - `docs/design/sensorhub_defi_tap_design.md`：既設Defiの油温・油圧センサーを読むセンサーハブ基板の設計（v2：油温はサーミスタを直接測りデジタルポテンショメータでDefiへ再現、ピン単位の接続表・LCSC品番つき部品表・換算式・校正手順）。使用サーミスタの特性は`datasheet/defi_temp_sensor_rt.csv`
+- `docs/design/analysis_map_features.md`：**解析アプリの地図の上での解析・比べの仕様**（SP-10-12〜10-17、2026-11-15）。線を値・タイムの差で塗る、コーナーごとの区間の表と理論ベスト、測位から計算する旋回半径と摩擦円、物差しと線の横のずれ、車を追う再生、別の日の線のずれ。SUGO 11/8 の3周での下見の数と、ほかの解析ソフト（AiM・MoTeC・Circuit Tools など）の地図まわりの比べつき
 - `docs/design/brake_pressure_sensor_ncec.md`：NCECの**ブレーキ圧センサー**の候補（AiM M10、0-100/0-160 bar）とロガー側のつなぎ方。**電源が8〜16Vで、センサーハブの5Vでは動かない**点に注意。付ける場所・継手は車両リポジトリ（ncec-roadster）の`maintenance/reliability-plan.md` 2-2が正
 - `docs/design/ecorun_team_systems.md`：エコランチーム（GitHub組織`TMCIT-Ecorun`）の既存システム（フロントパネル・通話試作・ダッシュボード）とEcoLoggerの関係、通話・中継サーバーの構成方針。**チーム側リポジトリは読むだけで変更しない**（例外：`ecorun-logger-server`はMaruo.Sさんの依頼でブランチ＋PRで変更する。2026-10-14〜）
 - `docs/design/enclosure_ecorun_20261024.md`：エコラン大会用の3Dプリント筐体の設計材料（Ver.2・Ver.1の基板寸法と縁の部品位置、STEPの場所、要件、未確定事項）。耐衝撃の考え方は`docs/design/case_shock_design.md`
@@ -66,7 +67,7 @@
 ## `docs/research/` — 調査
 
 - `docs/research/analysis_export_formats_20261113.md`：解析ソフトへ走行記録を書き出す形式の調査（MoTeC i2の`.ld`、RaceLogicの`.vbo`ほか。SP-5-5、2026-11-13。まだ何も作っていない。形式を決めるのはユーザー）
-- `docs/research/digspice_analysis_study_20261115.md`：デジスパイスの解析ソフトの調べ（SP-10、2026-11-15）。地図の上の機能（減速は点線・物差し・4台のアニメーション・セクター）、GPSから計算するGと旋回半径・摩擦円、コーナーごとの仮想区間という見方、解析アプリとの比べと、地図の上での解析を強くする案6つ
+- `docs/research/digspice_analysis_study_20261115.md`：デジスパイスの解析ソフトの調べ（SP-10、2026-11-15）。地図の上の機能（減速は点線・物差し・4台のアニメーション・セクター）、GPSから計算するGと旋回半径・摩擦円、コーナーごとの仮想区間という見方、解析アプリとの比べと、地図の上での解析を強くする案6つ。今の版（Ver4.8.0）の説明書で確かめ直した表つき。仕様にしたものは`docs/design/analysis_map_features.md`
 - `docs/research/phone_lap_accuracy_20261115.md`：スマホ（測位1Hz）の周のタイムがどれだけ正しいか（SP-7-7、2026-11-15）。数え方は変えない（誤差はスマホの位置のゆっくりしたずれで、エコランの速さで約0.2〜0.3秒）
 - `docs/research/defi_sensor_curves_research.md`：Defiの油圧・温度センサーの電圧特性の調べもの（Defiは公式に非公開。海外フォーラムの実測表・個人サイトのメーター換算・公式のコネクター色を集め、2026-11-03〜04の実測と照合）。油圧は P[kPa]≒250×(V−V0)、温度はβが高温ほど大きい
 - `docs/research/kart_logger_study_20261027.md`：**レーシングカート（KT100）用の画面付き一体型ロガー**の調査資料。使う人向けに、できること・できないこと、MyLapsのラインを直接は検知できない理由とラップの取り方（GPS・磁気ストリップ・赤外線ビーコン）、**公式レースではアクセル開度・ブレーキ圧・ステアリング角を付けられない規則（CIK-FIA、2023年版の3.8・9.8）**、画面（反射型のメモリー液晶）と電源、ステアリング角の付け方とわかること（7章。ロガーがハンドルと一緒に回るためIMUのGをそのまま使えない件も）、富士スピードウェイ カートコースの情報、予算の目安
