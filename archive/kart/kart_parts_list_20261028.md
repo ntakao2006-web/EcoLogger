@@ -1,6 +1,8 @@
 # カート用ロガー 試作0号 部品リスト（KT-2-1、2026-10-28）
 
-> `docs/research/kart_logger_study_20261027.md`8章の構成を、実際に買える部品に落としたもの。発注はユーザー（KT-2-2、11/5まで）。
+> **2026-11-16 閉じた系統（ユーザー決定）：カート用のシンプルなロガーは作らない（市販品のほうが安く安定している）。** 参考に残している。経緯は`task_kart_20261129_breakdown.md`の冒頭。
+
+> `archive/kart/kart_logger_study_20261027.md`8章の構成を、実際に買える部品に落としたもの。発注はユーザー（KT-2-2、11/5まで）。
 > 価格と在庫は**2026-10-28に各店のページで見た値（税込）**。注文の前にもう一度確かめる。
 > ステアリング角の部品も入れてある（2026-10-28 ユーザー決定）。
 > 2026-10-28夕に改訂：
@@ -11,7 +13,7 @@
 >
 > 2026-10-30に改訂：**GNSSは、NEO-M9N単体（DigiKeyで2,800円）を自作の小さい基板に載せる**（ユーザー判断）。
 > SparkFunの基板（12,865円）とアクティブアンテナ（4,267円）をやめ、基板に直接貼るパッシブのパッチアンテナ（1,209円）にした。
-> 回路と配置は`docs/design/kart_gnss_carrier_design.md`（KT-3-2）。自作の基板が動かなかったときだけ、SparkFunの基板に切り替える（2章）
+> 回路と配置は`archive/kart/kart_gnss_carrier_design.md`（KT-3-2）。自作の基板が動かなかったときだけ、SparkFunの基板に切り替える（2章）
 
 ## 0. 先に結論
 
@@ -24,7 +26,7 @@
   - マイコン：手持ちのDevKitC-1ではなく、**電池の充電回路が入ったAdafruit ESP32-S3 Feather**（約3,200円）。
     DevKitC-1だと充電回路と5Vへの昇圧回路を別に買うことになり、値段はほぼ同じで配線が増える。DevKitC-1は部品が届くまでのファーム作りに使う
   - GNSS：**u-blox NEO-M9N単体を、25mm角のパッチアンテナと一緒に自作の40mm角の基板に載せる**。4種類の衛星を全部使ったまま25Hzが出る。
-    部品は約4,850円、基板の製作は約1,500〜3,000円（未確認）。基板が届くのは11/17ごろの見込み（2章、`docs/design/kart_gnss_carrier_design.md`）
+    部品は約4,850円、基板の製作は約1,500〜3,000円（未確認）。基板が届くのは11/17ごろの見込み（2章、`archive/kart/kart_gnss_carrier_design.md`）
 - **NEO-M9NはDigiKeyに在庫が無い（11/6に500個入る予定）。** 画面と一緒に早めに入荷待ちで注文しておく
 - 11/3の採寸のあとで決めるもの：ハンドルへの取付ボルト、ステアリング角のベルトの長さ（候補は5本セットで買っておく）、車体のパイプに巻くバンドの太さ
 - 回転の入力回路の部品は、回路案（KT-3-1、11/9以降）が決まってから秋月で買う。1〜2日で届くので11/5の注文に入れなくてよい
@@ -122,7 +124,7 @@ GNSSが手元に来るのは載せ台基板ができる11/17ごろなので、�
 
 | もの | 数 | 価格 | いつ・注意 |
 |---|---|---|---|
-| GNSSの載せ台基板 40×40mm 2層 厚さ1.6mm | 5枚〜（いちばん少ない単位） | 約1,500〜3,000円（送料込みの見込み。未確認） | 図面ができてLintarohさんに見てもらってから（11/10ごろ）。届くのは11/17ごろの見込み（`docs/design/kart_gnss_carrier_design.md`8章） |
+| GNSSの載せ台基板 40×40mm 2層 厚さ1.6mm | 5枚〜（いちばん少ない単位） | 約1,500〜3,000円（送料込みの見込み。未確認） | 図面ができてLintarohさんに見てもらってから（11/10ごろ）。届くのは11/17ごろの見込み（`archive/kart/kart_gnss_carrier_design.md`8章） |
 
 ### Amazon（本体。基板ではないものだけ）
 
@@ -174,7 +176,7 @@ AS5600の基板と磁石はDigiKeyで買う（上の表）。
 - **AS5600の基板**：回る向きを決めるDIRの端子がGNDにつながっているかを、基板の印刷か回路図で確かめる（浮いていると角度が安定しない）。
   出力はアナログ（OUT）を使う予定。線が1.5mほどになるので、I²Cで読むより強い（KT-4-7で決める）。
   磁石は、センサーの上で回して角度が0〜360°まで滑らかに変われば向きが正しい
-- **GNSSの載せ台基板**（基板が届いてから。組み立てと確かめ方は`docs/design/kart_gnss_carrier_design.md`5・6章）
+- **GNSSの載せ台基板**（基板が届いてから。組み立てと確かめ方は`archive/kart/kart_gnss_carrier_design.md`5・6章）
   - パッチアンテナはいちばん最後に付ける。付ける前に体の静電気を逃がす
   - 屋外で衛星をつかむか、4種類の衛星（＋みちびき）で25回／秒出るか、受信の強さが足りているかを見る（11/20まで）
   - アンテナは上向きにし、上に金属を置かない（3Dプリントの箱の天井越しなら問題ない）
@@ -225,7 +227,7 @@ GPSのラップ・セクター・走行ライン・G（GNSSから計算）・画
 
 - GNSSの載せ台基板の部品（2026-10-30）：DigiKey [NEO-M9N-00B](https://www.digikey.jp/ja/products/detail/u-blox/NEO-M9N-00B/12149174)、[CGGBP.25.4.A.02](https://www.digikey.jp/ja/products/detail/taoglas-limited/CGGBP-25-4-A-02/4965527)、
   [PESD0402-140](https://www.digikey.jp/ja/products/detail/littelfuse-inc/PESD0402-140/1968525)、[MCP1700T-3002E/TT](https://www.digikey.jp/ja/products/detail/microchip-technology/MCP1700T-3002E-TT/651114)、
-  [NEO-M9V-20B](https://www.digikey.jp/ja/products/detail/u-blox/NEO-M9V-20B/16611140)、[SAM-M10Q-00B](https://www.digikey.jp/ja/products/detail/u-blox/SAM-M10Q-00B/16672678)、秋月は3章の表のリンク先。回路の根拠は`docs/design/kart_gnss_carrier_design.md`の出典
+  [NEO-M9V-20B](https://www.digikey.jp/ja/products/detail/u-blox/NEO-M9V-20B/16611140)、[SAM-M10Q-00B](https://www.digikey.jp/ja/products/detail/u-blox/SAM-M10Q-00B/16672678)、秋月は3章の表のリンク先。回路の根拠は`archive/kart/kart_gnss_carrier_design.md`の出典
 
 - DigiKey：[Adafruit 4694](https://www.digikey.jp/ja/products/detail/adafruit-industries-llc/4694/13157994)、[LS027B7DH01A](https://www.digikey.jp/ja/products/detail/sharp-microelectronics/LS027B7DH01A/5054067)、[Adafruit 5477](https://www.digikey.jp/ja/products/detail/adafruit-industries-llc/5477/16583982)、[Adafruit 4682](https://www.digikey.jp/ja/products/detail/adafruit-industries-llc/4682/12822319)、
   [SparkFun 15712](https://www.digikey.jp/ja/products/detail/sparkfun-electronics/15712/11481331)、[SparkFun 15733](https://www.digikey.jp/ja/products/detail/sparkfun-electronics/15733/11481329)、[SparkFun 21834](https://www.digikey.jp/ja/products/detail/sparkfun-electronics/21834/18735208)、

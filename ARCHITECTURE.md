@@ -174,7 +174,7 @@
 |---|---|---|
 | **Ver.2（本番機）** | Arduino UNO Q（Linux＋STM32）＋自作シールド＋UPS基板。USB-Cドックの先にモニターとカメラ | 2026-11-08のSUGO 120分耐久を走った形。11/10にその形を丸ごと控えた（`v2_firmware_backup_20261110.md`。展示会でファームを書き換える話があるので、**本体に触る前にこの資料で今どちらの形かを確かめる**） |
 | Ver.1 | ESP32-S3の自作基板（`firmware/logger_v1`） | 保険機として据え置き。機能の追加は10/28に凍結 |
-| カート用 試作0号 | 画面つきの一体型 | 11/29の富士に向けて準備中（`task_kart_20261129_breakdown.md`） |
+| カート用 試作0号 | 画面つきの一体型 | **2026-11-16にやめた（ユーザー決定）**。シンプルなロガーは市販品のほうが安く安定しているので作らない（`task_kart_20261129_breakdown.md`冒頭。資料は`archive/kart/`） |
 
 **Ver.2で動いているソフト**（細かい役割と置き場所は`v2_hardware_overview.html`の後半、ファイルごとの仕分けは`docs/design/unoq_software_inventory.md`）
 
@@ -207,16 +207,18 @@
 | 下の追記での書き方 | いまの場所 |
 |---|---|
 | `hardware_share_*`・`hardware_ans_*`・`hardware_meeting_agenda.md`・`lintaroh_share_*`・`lintaroh_answer_*`・`maruo_share_*`・`maruo_answer_*`・`ogata_share_*`・`HANDOFF_2026*`・`HANDOFF_*_20260915`・`ROADSTER_INVESTIGATION_*` | `docs/share/`（`hardware_share_20261004_podium.md`と`lintaroh_answer_20261101_defi_volt.md`の2本は直下のまま） |
-| `hardware_interface_spec.md`・`ncec_can_spec.md`・`sensorhub_defi_tap_design.md`・`brake_pressure_sensor_ncec.md`・`case_shock_design.md`・`enclosure_ecorun_*`・`er12_mpp_soc_harness_bom.md`・`kart_gnss_carrier_*`・`kart_parts_list_*`・`logger_v2_channel_and_sensor_spec.md`・`logger_v2_gnss_i2c_design.md`・`ecorun_team_systems.md` | `docs/design/` |
+| `hardware_interface_spec.md`・`ncec_can_spec.md`・`sensorhub_defi_tap_design.md`・`brake_pressure_sensor_ncec.md`・`case_shock_design.md`・`enclosure_ecorun_*`・`er12_mpp_soc_harness_bom.md`・`logger_v2_channel_and_sensor_spec.md`・`logger_v2_gnss_i2c_design.md`・`ecorun_team_systems.md` | `docs/design/` |
 | `sugo_day_manual_*`・`ecorun_day_manual_*`・`ecologger_troubleshooting.html`・`ecologger_system_overview.html`・`ecorun_flow_*`・`ncec_field_procedure.md`・`mazda2_field_procedure.md`・`lexus_ux_field_procedure.md`・`podium_auto_link_test_plan.md`・`android_circuit_handoff_*` | `docs/manual/` |
-| `OBD2_SURVEY.md`・`vehicle_can_survey_summary.md`・`LOGGER_V2_*`・`logger_v2_lte_sim_survey.md`・`lap_detection_survey_*`・`podium_connect_notes.md`・`defi_sensor_curves_research.md`・`kart_logger_study_*`・`ecorun_final_plan_*`・`ecorun_race_20261025_*`・`test_drive_20261024_night.md` | `docs/research/` |
+| `OBD2_SURVEY.md`・`vehicle_can_survey_summary.md`・`LOGGER_V2_*`・`logger_v2_lte_sim_survey.md`・`lap_detection_survey_*`・`podium_connect_notes.md`・`defi_sensor_curves_research.md`・`ecorun_final_plan_*`・`ecorun_race_20261025_*`・`test_drive_20261024_night.md` | `docs/research/` |
 | `DASHCAM_*` | `archive/dashcam/` |
+| `kart_logger_study_*`・`kart_parts_list_*`・`kart_gnss_carrier_*`（11/13〜11/16は`docs/research/`・`docs/design/`） | `archive/kart/` |
 | `tools/race_replay`・`tools/podium_replay`・`tools/unoq_spi_sd_test`・`tools/lte_antenna` | `tools/dev/` |
 | `tools/voice_gate`・`tools/discord_bridge`・`handoff_20261020_voice_field_test.md` | `archive/voice/` |
 | `tools/record_sheet`・`ecorun_record_sheet_20261024.xlsx` | `ecorun/record_sheet/` |
 
 ### 日付順の追記（新しいものが上）
 
+- 2026-11-16：**カート用ロガー（KT-x）をやめた（ユーザー決定）。** ラップ・GPS・回転くらいのシンプルなロガーは、Dragyなどの市販品のほうがずっと安く、品質も安定している。自分たちで作るのに分があるのは、CANを読んで解析できるような市販品に無い高機能なロガーに限る、という判断で、`SPEC.md` 10章に書いた。KT-1〜KT-10の未着手・途中の項目はすべて【廃止】にし、調査資料・部品リスト・GNSSの載せ台基板の案は`archive/kart/`へ移した（参考に残す）。11/3の下見・部品の発注・基板の図面はやった記録が無いまま閉じた。
 - 2026-11-16：**NCECの回転数（`0x201`の`raw/4`）は8,000rpmまで線形と確かめた（Phase 2-4-8-5、SUGO 11/8の決勝の記録から）。** 9/12の調べでは3,439rpmまでしか使っていなかった。決勝の記録は最高8,123rpm・3,439rpmより上が行の48%で、クラッチがつながっている間の「回転数÷前輪の車輪速」がギアごとに1,500〜8,000rpmのどこでも1.5%以内で一定（3速59.3〜60.4・4速42.6〜43.3）。リミッター付近で跳ぶ・頭打ちになる様子も無い。純正のタコメーターとの見比べはしていない。`ncec_next_session_checklist.md`のEを閉じた（残りはD・B-2・F）
 - 2026-11-16：**解析アプリの1枚のレポートを、専用の窓（WebView2）から印刷して確かめ、速さの色を「遅い＝赤・速い＝青」に入れ替えた（SP-10-43の追記。解析アプリ e806a0e）。** 専用の窓の印刷の窓は開き、SUGO 11/8 で1枚に入った。PDF にするときは、プリンターに「PDF として保存」を選ぶと A4 横のページになる。「Microsoft Print to PDF」は、レイアウトで横を選んでも縦の紙に横倒しで載せる。マサラボの Canon（MF751C/753C）へは向きの欄が出ずに1枚送られ、待ち行列から消えた。色は、刷った紙を見たユーザーの意見で入れ替えた。**訂正**：この上の 2026-11-17 と書いた行（SP-7-8・SP-7-9・展示のあとの了承・スマホへ入れた分・SP-10-43）は、どれも 2026-11-16 の作業（日付の書き間違い。コミットの時刻も 11/16）。4章のほかの所と分解ファイル・ソースのコメントは 11-16 に直した
 - 2026-11-17：**再生の試験台（SP-7-9）をリポジトリの古い版8つでも回した。SDの目次の不具合は11/07のSD満杯の変更（SG-1-10）で入り、11/11に直るまでの3つの版（11/07・11/09）にあった。** それより前の10/04・10/09の版と、11/11からの版は3段とも通る。SUGO（11/8）の前から入っていた不具合で、SDがいっぱいのとき古いファイルを消す変更のときに、目次を伸ばすのと新しいファイルの区画を取るのとの順が入れ替わったのが元
@@ -2026,7 +2028,7 @@
 | 系統 | 番号 | 分解ファイル | 状態（11/4。11/16に見直し） | 次の区切り |
 |---|---|---|---|---|
 | SUGO 120分耐久（NCEC・Ver.2） | `SG-x` | `task_sugo_20261108_breakdown.md` | **大会は終了**（11/8）。11/16に「完了／閉じる／持ち越し」を仕分けた（同ファイル冒頭） | 次にNCECで走るとき、冒頭の持ち越しの表を見る |
-| カート用ロガー 試作0号 | `KT-x` | `task_kart_20261129_breakdown.md` | 進行中のはずだが、11/3の下見（KT-1）・部品の発注（KT-2-2、11/5まで）・載せ台基板の図面（KT-3-2-2、11/8まで）はどれも記録が無い（11/16）。11/29に間に合わせるかはユーザーに確かめる | 11/29 富士 |
+| カート用ロガー 試作0号 | `KT-x` | `task_kart_20261129_breakdown.md`（資料は`archive/kart/`） | **2026-11-16に全項目を閉じた（廃止、ユーザー決定）**。シンプルなロガーは市販品のほうが安く安定しているので作らない | ― |
 | エコラン全国大会（10/24・25） | `ER-x` | `task_ecorun_20261024_breakdown.md` | **大会は終了**。11/4に「完了／閉じる／持ち越し」を仕分けた（同ファイル冒頭） | 次のエコランの分解を起こすときに持ち越しを引き継ぐ |
 | Ver.2（UNO Q）の構想と判断 | `E-x`、回路担当への依頼は`A-x`・`M-x`等 | `docs/research/LOGGER_V2_UNOQ_REPORT.md` 7章、`docs/share/hardware_share_20260921.md`・`docs/share/hardware_ans_20260921.md` | **判断の記録**で、作業の一覧ではない。Ver.2の作業はイベントの分解（ER・SG）の中で進めてきた | — |
 | Ver.2の映像（焼き込み・録画） | `V-x`・`D-x` | `unoq_video_check_procedure.md` | 本体へ導入済み（10/30から常駐、11/4にv2）。車載はSG-2-5・SG-2-7 | SUGOで車載 |

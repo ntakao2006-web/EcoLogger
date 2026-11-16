@@ -19,7 +19,7 @@
 - `unoq_video_to_shield_sd_study.md`：焼き込み映像をシールド側SDへ保存できるか（E-6）の調査。Linux→STM32の内部SPI、ビットレートと画質の実測、SD側のボトルネック
 - `server_deploy_grafana_x86.md`：自宅ROCK 5Bのピット用Grafana（EcoRun Live）・「周回・時間」のページ・地図を、別のLinuxサーバー（主サーバーにする先輩のラックサーバー）で**5Bと同じに立てる**ための引き継ぎ資料（2026-10-25 10時の5Bの実物と照合した版）。画面の構成・ブリッジがしていること・10/18以降のUI変更・5Bの設定との対応表・手順。実際のファイルは`tools/home_telemetry/deploy/`（VictoriaMetrics・Grafana・ブリッジのDocker Compose）。チームの`latest`がJSON Linesを書くのでサーバー本体の変更は不要。先輩へ送る文面は`docs/share/maruo_share_20261025_dashboard.md`
 - `task_sugo_20261108_breakdown.md`：**SUGO 120分耐久（2026-11-08、ロードスターNCEC）**向けのロガー・車載ダッシュ・インジケーター・油温油圧の基板の分解と日程（SG-x）。大会そのものの準備は`ncec-roadster`リポジトリ側
-- `task_kart_20261129_breakdown.md`：カート用ロガー試作0号を**2026-11-29に富士スピードウェイ カートコース**で使うための分解と日程（KT-x）。11/3は下見だけ、11/8まではSUGO優先
+- `task_kart_20261129_breakdown.md`：カート用ロガー試作0号を**2026-11-29に富士スピードウェイ カートコース**で使うための分解と日程（KT-x）。**2026-11-16にやめた（ユーザー決定。シンプルなロガーは市販品のほうが安く安定している）**。調査資料・部品リスト・GNSSの載せ台基板の案は`archive/kart/`へ移した（MyLapsのラインとラップの取り方・CIKの規則・ステアリング角の付け方は参考に残る）
 - `ncec_next_session_checklist.md`：**NCECに実車接続する前に必ず開く**。実車が無いと解けない宿題の一覧
 - `task_phaseX_breakdown.md`：各フェーズのサブタスク分解（1チャット=1タスク粒度）
 
@@ -54,8 +54,6 @@
 - `docs/design/ecorun_team_systems.md`：エコランチーム（GitHub組織`TMCIT-Ecorun`）の既存システム（フロントパネル・通話試作・ダッシュボード）とEcoLoggerの関係、通話・中継サーバーの構成方針。**チーム側リポジトリは読むだけで変更しない**（例外：`ecorun-logger-server`はMaruo.Sさんの依頼でブランチ＋PRで変更する。2026-10-14〜）
 - `docs/design/enclosure_ecorun_20261024.md`：エコラン大会用の3Dプリント筐体の設計材料（Ver.2・Ver.1の基板寸法と縁の部品位置、STEPの場所、要件、未確定事項）。耐衝撃の考え方は`docs/design/case_shock_design.md`
 - `docs/design/er12_mpp_soc_harness_bom.md`：EV二輪のMPP充電器からSOCを読む測定用ハーネスの部品表（秋月版・千石版）と結線表（ER-12）
-- `docs/design/kart_parts_list_20261028.md`：カート用ロガー試作0号の**部品リスト**（KT-2-1。DigiKey・秋月・Amazonの品番・価格・リンク、ステアリング角の部品込みで約4.9万円、センサー無しの最小構成なら約2.6万円）。**基板は正規の店（DigiKey・Mouser・RS等）だけで買う**（Amazonは基板以外のみ）。マイコンはAdafruit ESP32-S3 Feather、GNSSはu-blox NEO-M9N単体を自作の載せ台基板に載せる（4種類の衛星で25Hz）。**画面（Adafruit 4694）とNEO-M9Nは国内在庫が無く先行注文が要る**
-- `docs/design/kart_gnss_carrier_design.md`：カート用ロガーの**GNSSの載せ台基板**（KT-3-2）の回路と配置の案。NEO-M9N単体＋Taoglasの25mm角パッシブパッチを載せる40×40mmの2層基板、ピン全24本のつなぎ先、部品表（DigiKey・秋月）、アンテナの線の寸法、組み立て・確かめ方、Lintarohさんに見てほしい点。配置図は`docs/design/kart_gnss_carrier_layout.svg`
 - `docs/design/unoq_software_inventory.md`：本体のソフト（`RaceCapture-UNOQ/`・`EcoCapture-Web/`）を「いま動いているもの／公式アプリ用／通話／試験／古い候補」に分けた一覧（2026-11-13、SP-2-4）。公式アプリを外すとき（SP-7-3）の材料。本体で有効かどうかは「要確認」のまま
 - `docs/design/logger_v2_channel_and_sensor_spec.md`：Ver.2への入力・出力チャンネルの仕様（回路担当の宿題6・7・8。外部CANのチャンネルごとの用途、油温・油圧センサーの選定、追加で記録したい車体の信号）。外部CANのID割り当て表の正は`sensorhub_generic_spec.md`
 - `docs/design/logger_v2_gnss_i2c_design.md`：Ver.2のGNSSをI²C（DDC）にしてIMUとバスを分け合う設計メモ（回路担当の宿題1・2）
@@ -81,7 +79,6 @@
 - `docs/research/digspice_analysis_study_20261115.md`：デジスパイスの解析ソフトの調べ（SP-10、2026-11-15）。地図の上の機能（減速は点線・物差し・4台のアニメーション・セクター）、GPSから計算するGと旋回半径・摩擦円、コーナーごとの仮想区間という見方、解析アプリとの比べと、地図の上での解析を強くする案6つ。今の版（Ver4.8.0）の説明書で確かめ直した表つき。ドリフト角（iPhoneの姿勢センサーと測位から出す。普通のログには入らない）と採点は7.1。仕様にしたものは`docs/design/analysis_map_features.md`
 - `docs/research/phone_lap_accuracy_20261115.md`：スマホ（測位1Hz）の周のタイムがどれだけ正しいか（SP-7-7、2026-11-15）。数え方は変えない（誤差はスマホの位置のゆっくりしたずれで、エコランの速さで約0.2〜0.3秒）
 - `docs/research/defi_sensor_curves_research.md`：Defiの油圧・温度センサーの電圧特性の調べもの（Defiは公式に非公開。海外フォーラムの実測表・個人サイトのメーター換算・公式のコネクター色を集め、2026-11-03〜04の実測と照合）。油圧は P[kPa]≒250×(V−V0)、温度はβが高温ほど大きい
-- `docs/research/kart_logger_study_20261027.md`：**レーシングカート（KT100）用の画面付き一体型ロガー**の調査資料。使う人向けに、できること・できないこと、MyLapsのラインを直接は検知できない理由とラップの取り方（GPS・磁気ストリップ・赤外線ビーコン）、**公式レースではアクセル開度・ブレーキ圧・ステアリング角を付けられない規則（CIK-FIA、2023年版の3.8・9.8）**、画面（反射型のメモリー液晶）と電源、ステアリング角の付け方とわかること（7章。ロガーがハンドルと一緒に回るためIMUのGをそのまま使えない件も）、富士スピードウェイ カートコースの情報、予算の目安
 - `docs/research/LOGGER_V2_UNOQ_REPORT.md`：Ver.2（UNO Q）のGNSS選定とセンサーフュージョンの構想（回路担当への共有用）。7章の`E-x`はVer.2の判断の記録（`ARCHITECTURE.md` 5章冒頭の表）
 - `docs/research/LOGGER_V2_LTE_MODEM_REPORT.md`・`docs/research/LOGGER_V2_LTE_MODEM_QUESTIONS.md`：LTEモデム（SIM7070G）の評価と、回路担当への相談メモ（2026-09）
 - `docs/research/logger_v2_lte_sim_survey.md`：日本とドイツの両方で使えるLTE-MのSIMの調べ（回路担当の宿題9）

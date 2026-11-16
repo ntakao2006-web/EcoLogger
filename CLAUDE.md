@@ -59,9 +59,9 @@ RaceCapture互換の車載データロガーを自作するプロジェクト。
 - `docs/share/`：人に渡したメモ（`hardware_share_*`・`lintaroh_share_*`・`maruo_share_*`・`ogata_share_*`）と、その回答の一次資料（`hardware_ans_*`・`lintaroh_answer_*`・`maruo_answer_*`）。**新しいメモ・回答もここへ置く。ハード側の話が出たらメモと回答をセットで読む**
   - **Lintarohさんは回路担当と同一人物**（回路・基板・電源）。**UNO QのLinux側のソフト・EcoCapture・STM32のファームは基本こちらで作るので、ソフトを変えても報告用のメモは作らない**（記録は分解ファイルと`ARCHITECTURE.md`だけ）
   - エコランチーム（GitHub組織`TMCIT-Ecorun`）の**リポジトリは読むだけで変更しない**（例外：`ecorun-logger-server`はMaruo.Sさんの依頼でブランチ＋PR）。詳しくは`docs/design/ecorun_team_systems.md`
-- `docs/design/`：仕様・設計（`ncec_can_spec.md`＝NCECのCAN、`hardware_interface_spec.md`、センサー・筐体・カートの部品と基板、本体のソフトの仕分け一覧）
+- `docs/design/`：仕様・設計（`ncec_can_spec.md`＝NCECのCAN、`hardware_interface_spec.md`、センサー・筐体の部品と基板、本体のソフトの仕分け一覧）
 - `docs/manual/`：手順書（SUGO・エコランの当日用A4、実車でのCAN測定の手順）
-- `docs/research/`：調査（OBD2・車両CAN、Ver.2の構想`LOGGER_V2_UNOQ_REPORT.md`、LTE、Podium、Defiのセンサー、カート）
+- `docs/research/`：調査（OBD2・車両CAN、Ver.2の構想`LOGGER_V2_UNOQ_REPORT.md`、LTE、Podium、Defiのセンサー）
 - `tools/`：PCで使う道具と、本体の録画のソフト`tools/unoq_overlay_enc/`（本体へ入れるスクリプトがパスを見ているので動かさない）
   - 入口は`tools/ecologger_menu/`（操作メニュー）と`tools/video_collect/Collect-Video.cmd`（回収）。**新しい`.cmd`を作ったら操作メニューの`TOOL_GROUPS`（設定・調べものの窓）に足す。ふだんの窓へは足さない**
   - PC側の合言葉・記録の置き場は`%USERPROFILE%\.ecologger`。**`%LOCALAPPDATA%`はClaudeのアプリから動かしたときだけ振り替えられるので使わない**
@@ -73,5 +73,5 @@ RaceCapture互換の車載データロガーを自作するプロジェクト。
 - `circuit/`：回路・基板（KiCad）。`datasheet/`：部品の資料
 - `ecorun/`：エコランチームの用事（記録表）
 - `outputs/`：確かめの記録（`<名前>_<日付>/`）
-- `archive/`：閉じた系統の資料（ダッシュカム・通話・Phase 0）。消さずにここへ移す
+- `archive/`：閉じた系統の資料（ダッシュカム・通話・Phase 0・カート）。消さずにここへ移す
 - `drive_logs/`：走行ログ（SDの`EL*.BIN`とデコード結果）。位置情報を含むため`.gitignore`済みでリポジトリに入れない
