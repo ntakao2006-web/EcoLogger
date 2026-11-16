@@ -1,4 +1,4 @@
-"""再生の試験台（SP-7-9、2026-11-17）：STM32のファームに走行の記録を流し込み、SDに残った記録とLinuxが受け取った値を照らす。
+"""再生の試験台（SP-7-9、2026-11-16）：STM32のファームに走行の記録を流し込み、SDに残った記録とLinuxが受け取った値を照らす。
 
     python firmware/ecologger_v2/tests/host/test_replay.py [--sd-dir DIR] [--first 100] [--files 4] [--seconds 0] [--no-stall] [--no-rpc]
         [--firmware DIR] [--keep DIR]

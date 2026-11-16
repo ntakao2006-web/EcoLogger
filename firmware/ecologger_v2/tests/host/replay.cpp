@@ -1,4 +1,4 @@
-// Replay bench for the STM32 firmware on the PC (SP-7-9, 2026-11-17). logger_impl.h is built unchanged
+// Replay bench for the STM32 firmware on the PC (SP-7-9, 2026-11-16). logger_impl.h is built unchanged
 // against the stand-ins in host_kernel.h and driven by the fake devices in host_devices.h, which play back
 // a drive recorded on the SD card (prepared by test_replay.py). Built and run in WSL:
 //   g++ -std=c++17 -O2 -Itests/host/include -Itests/host -o /tmp/replay tests/host/replay.cpp

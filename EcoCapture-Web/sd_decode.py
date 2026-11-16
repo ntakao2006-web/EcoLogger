@@ -5,7 +5,7 @@ column decoded exactly as the logger does live (hardware.HardwareDecoder): a val
 is kept for 1 s after its frame, and sensor-hub oil temperature adds <name>State
 (0 OK, 1 open, 2 short, 3 bad frame, 4 no frame). Raw frames still go to .can.jsonl.
 
-Since SP-7-8 (2026-11-17) the logger also writes, once a second, which augmentation the
+Since SP-7-8 (2026-11-16) the logger also writes, once a second, which augmentation the
 receiver used: record 5 (NAV-SAT counted by the STM32) and record 6 (the NAV-SLAS head).
 They go to .gnss.jsonl (see gnss_aux); files without them get no .gnss.jsonl.
 

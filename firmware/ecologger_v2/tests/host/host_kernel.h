@@ -1,5 +1,5 @@
 // Stand-ins for the Arduino / Zephyr / STM32 calls used by logger_impl.h, so the firmware builds with g++
-// on the PC unchanged (SP-7-9, 2026-11-17). Only the logic runs: the clock is virtual, and the threads are
+// on the PC unchanged (SP-7-9, 2026-11-16). Only the logic runs: the clock is virtual, and the threads are
 // ucontext coroutines run one at a time in the order of the virtual time (no real concurrency, no
 // preemption). Code takes no time; time passes only in delay / k_msleep / k_usleep / k_busy_wait.
 // The fake devices (host_devices.h) are reached through the hooks declared at the end.

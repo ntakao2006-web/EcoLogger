@@ -1,5 +1,5 @@
 #!/bin/sh
-# PC（Windows の Git Bash）で、本体の build.sh と同じ手順で組んで大きさを測る（2026-11-17、SP-7-8）。書き込みはしない。
+# PC（Windows の Git Bash）で、本体の build.sh と同じ手順で組んで大きさを測る（2026-11-16、SP-7-8）。書き込みはしない。
 #   sh build_pc.sh <ソースのフォルダ> <出力のフォルダ>
 # 用意（README の「PCで組む」）：$ARDUINO_UNOQ（無ければ ~/arduino-unoq）に arduino-cli 1.4.0 と arduino:zephyr@0.52.0、
 # 本体の控えから写した ecologger_v2_libraries（unoq_ref/ の下）と、本体の build.sh が手直しした5つのライブラリのファイル

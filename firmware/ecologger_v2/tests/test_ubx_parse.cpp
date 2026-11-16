@@ -1,4 +1,4 @@
-// PC test of ubx_parse.h (SP-7-8, 2026-11-17): NAV-PVT is read as before, and the longer NAV-SAT and
+// PC test of ubx_parse.h (SP-7-8, 2026-11-16): NAV-PVT is read as before, and the longer NAV-SAT and
 // NAV-SLAS frames are followed to their checksum (NAV-SAT counted on the way) instead of being dropped.
 // Built with g++ in WSL:
 //   g++ -std=c++17 -O1 -Wall -o /tmp/test_ubx_parse tests/test_ubx_parse.cpp && /tmp/test_ubx_parse
