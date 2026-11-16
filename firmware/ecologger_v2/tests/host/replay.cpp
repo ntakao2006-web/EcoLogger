@@ -2,7 +2,8 @@
 // against the stand-ins in host_kernel.h and driven by the fake devices in host_devices.h, which play back
 // a drive recorded on the SD card (prepared by test_replay.py). Built and run in WSL:
 //   g++ -std=c++17 -O2 -Itests/host/include -Itests/host -o /tmp/replay tests/host/replay.cpp
-//   /tmp/replay --events EVENTS --out DIR [--sd-busy-us N] [--stall FROM_MS:TO_MS:BUSY_MS]... [--rpc-port P [--speed X]]
+//   /tmp/replay --events EVENTS --out DIR [--sd-busy-us N] [--stall FROM_MS:TO_MS:BUSY_MS]... [--other-files N]
+//               [--card-mib 128] [--cluster-sectors 2] [--rpc-port P [--speed X]]
 // Without --rpc-port a simulated Linux side (like EcoCapture-Web server.py: logger.status every 0.1 s,
 // logger.take every 0.05 s) runs inside the virtual time. With --rpc-port the Bridge RPC is served on
 // 127.0.0.1:P (MessagePack-RPC like Arduino Router) and the virtual clock follows the wall clock (× speed).
@@ -83,8 +84,9 @@ static void writeOutputs() {
           (unsigned long long)eventsApplied[EV_IMU], (unsigned long long)eventsApplied[EV_IMU_FAIL], (unsigned long long)eventsApplied[EV_GNSS],
           (unsigned long long)eventsApplied[EV_CAN1], (unsigned long long)eventsApplied[EV_CAN2]);
   fprintf(f, "\"bno055\":{\"reads\":%llu,\"fails\":%llu,\"opr_mode\":%u},\n", (unsigned long long)bno.reads, (unsigned long long)bno.fails, bno.regs[0x3d]);
-  fprintf(f, "\"gnss\":{\"bytes_in\":%llu,\"bytes_read\":%llu,\"left\":%zu,\"config_ok\":%llu,\"config_bad\":%llu},\n", (unsigned long long)gnss.bytesIn,
-          (unsigned long long)gnss.bytesRead, gnss.out.size(), (unsigned long long)gnss.configOk, (unsigned long long)gnss.configBad);
+  fprintf(f, "\"gnss\":{\"bytes_in\":%llu,\"bytes_read\":%llu,\"left\":%zu,\"config_ok\":%llu,\"config_bad\":%llu,\"nav_sat_on\":%s,\"nav_slas_on\":%s,\"aux_skipped\":%llu},\n",
+          (unsigned long long)gnss.bytesIn, (unsigned long long)gnss.bytesRead, gnss.out.size(), (unsigned long long)gnss.configOk,
+          (unsigned long long)gnss.configBad, gnss.satOn ? "true" : "false", gnss.slasOn ? "true" : "false", (unsigned long long)gnss.auxSkipped);
   fprintf(f, "\"can1\":{\"delivered\":%llu,\"fifo_lost\":%llu,\"while_init\":%llu,\"not_listen_only\":%llu,\"bad_ack\":%llu,\"left\":%u},\n",
           (unsigned long long)can1.delivered, (unsigned long long)can1.lost, (unsigned long long)can1.whileInit, (unsigned long long)can1.notListenOnly,
           (unsigned long long)can1.badAck, can1.fill);
@@ -295,7 +297,7 @@ static void run() {
 int main(int argc, char **argv) {
   using namespace host;
   const char *eventsPath = nullptr;
-  uint32_t cardMiB = 128, clusterSectors = 2;
+  uint32_t cardMiB = 128, clusterSectors = 2; unsigned otherFiles = 0;
   for (int i = 1; i < argc; i++) {
     std::string a = argv[i];
     auto next = [&]() { if (i + 1 >= argc) { fprintf(stderr, "missing value for %s\n", a.c_str()); exit(1); } return argv[++i]; };
@@ -307,12 +309,13 @@ int main(int argc, char **argv) {
     else if (a == "--speed") speed = atof(next());
     else if (a == "--card-mib") cardMiB = (uint32_t)atoi(next());
     else if (a == "--cluster-sectors") clusterSectors = (uint32_t)atoi(next());
+    else if (a == "--other-files") otherFiles = (unsigned)atoi(next());
     else { fprintf(stderr, "unknown argument %s\n", a.c_str()); return 1; }
   }
   if (!eventsPath || outDir.empty()) { fprintf(stderr, "usage: replay --events FILE --out DIR [...]\n"); return 1; }
   loadEvents(eventsPath);
   endUs = events.empty() ? 0 : events.back().us + 1500000;
-  formatCard(cardMiB * 2048, (uint8_t)clusterSectors);
+  formatCard(cardMiB * 2048, (uint8_t)clusterSectors, otherFiles);
   hookRegisters();
   spawn("main", mainThread, nullptr, nullptr, nullptr, MAIN_PRIORITY, 0);
   if (rpcPort) { realtime = true; rpcListen(); spawn("rpcServer", rpcServer, nullptr, nullptr, nullptr, MAIN_PRIORITY, 0); }

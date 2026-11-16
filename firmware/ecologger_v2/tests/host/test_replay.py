@@ -40,6 +40,8 @@ sys.path.insert(0, str(REPO / 'EcoCapture-Web' / 'vendor'))
 from sd_decode import records, gnss_aux  # noqa: E402
 
 T0_US = 3_000_000           # the replay starts 3 s after the MCU boots (setup takes about 0.7 s)
+OTHER_FILES = 30            # the card's root directory (32 entries a cluster) starts with the label and 30 other files:
+                            # EL000001 takes the last entry and EL000002 makes the directory grow (fixed 2026-11-11)
 DEFAULT_SD = Path('drive_logs/20261111/run02_2049/v2_sd')
 IN_WSL = sys.platform.startswith('linux')
 
@@ -113,14 +115,13 @@ def build_events(sd_dir, first, count, seconds):
             events.append((t, i, 4, b'')); exp.imu_fail_in += 1
         elif kind == 2:
             itow = struct.unpack_from('<I', data)[0]
-            stream = ubx(1, 7, data)
             exp.nav.append((t, data))
-            if itow % 1000 == 0:
+            events.append((t, i, 20, ubx(1, 7, data)))
+            if itow % 1000 == 0:  # the receiver sends these only when the firmware asked for them (host_devices.h)
                 sat, rec5 = nav_sat(itow)
                 slas, rec6 = nav_slas(itow)
-                stream += sat + slas
+                events.append((t, i, 21, sat)); events.append((t, i, 22, slas))
                 exp.sat.append((t, rec5)); exp.slas.append((t, rec6))
-            events.append((t, i, 20, stream))
         elif kind == 3:
             ch, ident, flags, n = data[0], struct.unpack_from('<I', data, 1)[0], data[5], data[6]
             t += spread[i]
@@ -166,7 +167,7 @@ def shell(cmd, cwd, background=False):
 
 def run_replay(exe, events_path, out, extra='', background=False):
     out.mkdir(parents=True, exist_ok=True)
-    return shell(f'{to_wsl(exe)} --events {to_wsl(events_path)} --out {to_wsl(out)} {extra}', cwd=FW, background=background)
+    return shell(f'{to_wsl(exe)} --events {to_wsl(events_path)} --out {to_wsl(out)} --other-files {OTHER_FILES} {extra}', cwd=FW, background=background)
 
 
 def read_card(out):
@@ -178,15 +179,29 @@ def read_card(out):
     from pyfatfs.PyFatFS import PyFatFS
     data = (out / 'card.img').read_bytes()
     part = struct.unpack_from('<I', data, 446 + 8)[0]
+    reserved = struct.unpack_from('<H', data, part * 512 + 14)[0]
+    root = struct.unpack_from('<I', data, part * 512 + 44)[0]
+    fat = (part + reserved) * 512
+    chain = [root]
+    while (nxt := struct.unpack_from('<I', data, fat + chain[-1] * 4)[0] & 0x0fffffff) < 0x0ffffff8:
+        chain.append(nxt)
+        assert len(chain) <= 2, (f'目次（ルートディレクトリ）の区画の鎖が {chain[:3]}… と伸び続ける：目次が新しいファイルの区画とつながった'
+                                 '（2026-11-11 に直した不具合の形）')
     part_image = out / 'card.part'
     part_image.write_bytes(data[part * 512:])
     fs = PyFatFS(str(part_image), read_only=True)
     try:
-        names = sorted(n for n in fs.listdir('/') if n.upper().startswith('EL'))
+        listed = fs.listdir('/')
+        names = sorted(n for n in listed if n.upper().startswith('EL'))
+        others = sorted(n for n in listed if n.upper().startswith('OTHER'))
+        assert others == [f'OTHER{i:03d}.TXT' for i in range(1, OTHER_FILES + 1)], others  # nothing overwrote them
+        assert all(fs.getsize('/' + n) == 0 for n in others)
         files = [(n, fs.readbytes('/' + n)) for n in names]
     finally:
         fs.close()
         part_image.unlink()
+    if len(names) >= 2:
+        assert len(chain) == 2, f'目次の区画 {chain}'  # 32 entries: the label, 30 others and EL000001, then a new cluster
     return files
 
 
@@ -286,7 +301,7 @@ def check_normal(out, exp, summary, view):
     st = {k: status.get(k) for k in ('seq', 'imu_errors', 'gnss_errors', 'dropped', 'can_counts', 'can_overflow', 'sd_errors', 'sd_queue_dropped',
                                  'sd_queue_max', 'sd_blocks', 'sd_logging', 'sd_alloc_ms')}
     print(f'  SD: {len(files)}本 {", ".join(f"{n}={len(b) // 1024}KiB" for n, b in files)}、記録 {len(sd)}件、ブロック {sum(len(b) for _, b in files) // 512}'
-          f'（全部 CRC・連番・ファイル番号が合う）')
+          f'（全部 CRC・連番・ファイル番号が合う。目次は2区画に伸び、ほかのファイル {OTHER_FILES}個もそのまま）')
     print(f'  状態: {st}')
     assert summary['problem_count'] == 0, summary['problems']
     assert summary['fatal'] is None, summary['fatal']
@@ -313,6 +328,10 @@ def check_normal(out, exp, summary, view):
     # GNSS: every NAV-PVT, and one NAV-SAT summary and NAV-SLAS head a second.
     for kind, want, name in ((2, exp.nav, 'NAV-PVT'), (5, exp.sat, 'NAV-SAT の要約（種類5）'), (6, exp.slas, 'NAV-SLAS の頭（種類6）')):
         got = by[kind]
+        if kind != 2 and not summary['gnss']['nav_sat_on' if kind == 5 else 'nav_slas_on']:
+            assert not got, name
+            print(f'  {name}: このファームは受信機に頼まない（受信機も出さない）')
+            continue
         assert [d for _, d in got] == [d for _, d in want], f'{name} の中身・並びが違う（SD {len(got)}件・入力 {len(want)}件）'
         lag = [ms - t // 1000 for (ms, _), (t, _) in zip(got, want)]
         assert min(lag) >= 0 and max(lag) <= 50, (name, min(lag), max(lag))
@@ -355,7 +374,7 @@ def check_stall(out, exp, summary, view, stall):
         assert is_subsequence(got[k], want[k]), f'種類{k}: 残った記録が入力の並びにない'
         missing += len(want[k]) - len(got[k])
     for k, w in ((2, exp.nav), (5, exp.sat), (6, exp.slas)):
-        wd = [d for _, d in w]
+        wd = [d for _, d in w] if k == 2 or summary['gnss']['nav_sat_on' if k == 5 else 'nav_slas_on'] else []
         gd = [d for _, _, d in got[k]]
         assert is_subsequence(gd, wd), f'種類{k}: 残った記録が入力の並びにない'
         missing += len(wd) - len(gd)

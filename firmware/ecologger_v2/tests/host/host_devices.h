@@ -6,7 +6,7 @@
 
 namespace host {
 struct Event { uint8_t kind; uint64_t us; std::vector<uint8_t> data; };
-enum { EV_IMU = 1, EV_IMU_FAIL = 4, EV_GNSS = 20, EV_CAN1 = 31, EV_CAN2 = 32 };
+enum { EV_IMU = 1, EV_IMU_FAIL = 4, EV_GNSS = 20, EV_NAV_SAT = 21, EV_NAV_SLAS = 22, EV_CAN1 = 31, EV_CAN2 = 32 };
 inline std::vector<Event> events;
 inline size_t nextEvent = 0;
 inline std::vector<std::string> problems;  // device-side protocol errors, the first few kept
@@ -49,9 +49,24 @@ inline Bno055 bno;
 
 // ---- MAX-M10M (0x42, DDC) ---------------------------------------------------------------------------
 // 0xfd/0xfe: bytes waiting (big endian); 0xff: the stream (0xff when empty). Writes are UBX CFG frames.
+// Like the receiver, NAV-SAT and NAV-SLAS come out only once the firmware asks for them on I2C
+// (CFG-VALSET CFG-MSGOUT-UBX_NAV_SAT_I2C 0x20910015, ..._NAV_SLAS_I2C 0x20910336): older firmware does not.
 struct Gnss {
   std::deque<uint8_t> out;
-  uint64_t bytesIn = 0, bytesRead = 0, configOk = 0, configBad = 0;
+  uint64_t bytesIn = 0, bytesRead = 0, configOk = 0, configBad = 0, auxSkipped = 0;
+  bool satOn = false, slasOn = false;
+  void valset(const uint8_t *p, uint32_t n) {
+    for (uint32_t i = 4; i + 4 <= n;) {
+      uint32_t key = p[i] | p[i + 1] << 8 | p[i + 2] << 16 | (uint32_t)p[i + 3] << 24; i += 4;
+      static const uint32_t sizes[8] = {0, 1, 1, 2, 4, 8, 0, 0};
+      uint32_t size = sizes[(key >> 28) & 7], v = 0;
+      if (!size || i + size > n) { problem("GNSS CFG-VALSET item that cannot be read"); return; }
+      for (uint32_t k = 0; k < size && k < 4; k++) v |= (uint32_t)p[i + k] << (8 * k);
+      i += size;
+      if (key == 0x20910015) satOn = v != 0;
+      if (key == 0x20910336) slasOn = v != 0;
+    }
+  }
   int read(uint8_t reg, uint8_t *b, uint32_t n) {
     if (reg == 0xfd && n == 2) { size_t a = std::min<size_t>(out.size(), 0xffff); b[0] = (uint8_t)(a >> 8); b[1] = (uint8_t)a; return 0; }
     if (reg == 0xff) {
@@ -63,7 +78,8 @@ struct Gnss {
   int write(const uint8_t *b, uint32_t n) {
     bool ok = n >= 8 && b[0] == 0xb5 && b[1] == 0x62 && 8u + (b[4] | (b[5] << 8)) == n;
     if (ok) { uint8_t x = 0, y = 0; for (uint32_t i = 2; i < n - 2; i++) { x += b[i]; y += x; } ok = x == b[n - 2] && y == b[n - 1]; }
-    if (ok) configOk++; else { configBad++; problem("GNSS config frame with a bad length or checksum"); }
+    if (ok) { configOk++; if (b[2] == 6 && b[3] == 0x8a) valset(b + 6, n - 8); }
+    else { configBad++; problem("GNSS config frame with a bad length or checksum"); }
     return 0;
   }
 };
@@ -284,6 +300,9 @@ inline void devicesAdvance(uint64_t us) {
     switch (e.kind) {
       case EV_IMU: memcpy(bno.sample, e.data.data(), 46); break;
       case EV_IMU_FAIL: bno.pendingFails++; break;
+      case EV_NAV_SAT: case EV_NAV_SLAS:
+        if (!(e.kind == EV_NAV_SAT ? gnss.satOn : gnss.slasOn)) { gnss.auxSkipped++; break; }
+        [[fallthrough]];
       case EV_GNSS: gnss.out.insert(gnss.out.end(), e.data.begin(), e.data.end()); gnss.bytesIn += e.data.size(); break;
       case EV_CAN1: can1.deliver(e.data); break;
       case EV_CAN2: mcp.deliver(e.data); break;
@@ -298,8 +317,10 @@ inline void hookRegisters() {
   fdcan1.RXF0S.rd = rxf0sRead; fdcan1.RXF0A.wr = rxf0aWrite; fdcan1.IR.wr = irWrite;
 }
 
-// A blank FAT32 card: MBR with one partition at 8192, a volume label in the root directory.
-inline void formatCard(uint32_t totalSectors, uint8_t clusterSectors) {
+// A blank FAT32 card: MBR with one partition at 8192, a volume label in the root directory, and
+// otherFiles empty files after it (OTHERnnn.TXT, no clusters), so the root directory's one cluster can be
+// nearly full and has to grow while the firmware makes its files (the 2026-11-11 fix in sd_logger.h).
+inline void formatCard(uint32_t totalSectors, uint8_t clusterSectors, unsigned otherFiles = 0) {
   sd.sectors = totalSectors; sd.data.clear();
   const uint32_t part = 8192, size = totalSectors - part, reserved = 32;
   uint32_t clusters = (size - reserved) / clusterSectors, fat = 0;
@@ -317,6 +338,15 @@ inline void formatCard(uint32_t totalSectors, uint8_t clusterSectors) {
   sd.put(part + 1, fs); sd.put(part + 7, fs);
   uint8_t f[512] = {}; p32(f, 0x0ffffff8); p32(f + 4, 0x0fffffff); p32(f + 8, 0x0fffffff);
   sd.put(part + reserved, f); sd.put(part + reserved + fat, f);
-  uint8_t root[512] = {}; memcpy(root, "ECOLOGGER  \x08", 12); sd.put(part + reserved + 2 * fat, root);
+  if (otherFiles + 1 > clusterSectors * 16u) fatal("more other files than the root directory cluster holds");
+  for (unsigned s = 0; s < clusterSectors; s++) {
+    uint8_t root[512] = {};
+    for (unsigned e = 0; e < 16; e++) {
+      unsigned slot = s * 16 + e; uint8_t *p = root + e * 32;
+      if (slot == 0) memcpy(p, "ECOLOGGER  \x08", 12);
+      else if (slot <= otherFiles) { char n[12]; snprintf(n, sizeof(n), "OTHER%03uTXT", slot); memcpy(p, n, 11); p[11] = 0x20; }
+    }
+    sd.put(part + reserved + 2 * fat + s, root);
+  }
 }
 }  // namespace host
