@@ -36,6 +36,9 @@
 - `docs/share/maruo_share_YYYYMMDD_*.md`：Maruo.Sさん（チームの通話サーバー`ecorun-logger-server`の作者）への相談。`docs/share/maruo_share_20261015_discord.md`はピットの通話をDiscordに戻す相談（未送）、`docs/share/maruo_share_20261025_dashboard.md`はピット用ダッシュボードを主サーバーでも5Bと完全に同じに立てるための連絡（未送。10/24版`docs/share/maruo_share_20261024_grafana.md`の差し替え）、`docs/share/maruo_share_20261025_cluster.md`は先輩のサーバー→5Bの複製が約21時間止まっていた件と、5Bの再起動後に複製の接続・Ver.2の接続が先輩側から切られた件の報告と質問（未送）、`docs/share/maruo_share_20261025_podium_rows.md`は先輩のサーバーの「skipping Podium sample…」の警告の原因（ロガーはPodium本来の詰めた形で送り、サーバーのデコードが固定長を前提にしている）と5B側ログの照合結果（未送）、`docs/share/maruo_share_20261030_server_pause.md`は先輩のサーバーを当面止めてもらい自宅の5Bをメインにする連絡（未送）、`docs/share/maruo_share_20261017_rock5b.md`は大会用の予備サーバーのお願いと、先輩がPR#1へ入れた実装（`4482ede`）にロガーから合わせるための相談（地図に位置を出す方法・ロガー向け音声。2026-10-18送付済み）
 - `docs/share/maruo_answer_YYYYMMDD.md`：**Maruo.Sさんからの回答の一次資料**。最新は`docs/share/maruo_answer_20261025.md`（ダッシュボード引き継ぎの確認事項への回答：入口は先輩が手で用意済み、ポートも先輩が直した、画面の更新はまだ。外から見た先輩のサーバーの状態と5Bとの違い）。その前が`docs/share/maruo_answer_20261018.md`（予備は先輩宅のラックサーバー、分散構成・Grafana不採用の方向、GitHub上の`4482ede`ではロガーの位置・音声がまだ出ないことの確認、こちらの宿題）
 - `docs/share/ogata_share_YYYYMMDD_*.md`：緒方さん（GitHub `ktrogt`、走行戦略ツールを作っているチームメンバー）への返信。`docs/share/ogata_share_20261024_issues_reply.md`は緒方さんがChatGPTで出した「既存の不具合と注意点」（`existing-issues.md`）への確認結果と、ブリッジのWebSocketの読み口（`kind=clock`）の説明
+- `docs/share/HANDOFF_2026*.md`・`docs/share/HANDOFF_*_20260915.md`：2026-09のVer.1（ESP32-S3）・EcoCaptureの作業の引継ぎ（09-02の統合、09-04のUX250h試験版、09-15のNCECへの反映・OBD限定送信・ファンの観測と暫定採用・状態表示）。当時の到達点の記録で、いまの正は`ARCHITECTURE.md`
+- `docs/share/ROADSTER_INVESTIGATION_20260915.md`：NCECの実車調査（2026-09-15）のまとめ。CANの解釈のいまの正は`docs/design/ncec_can_spec.md`
+- `docs/share/UNOQ_Defi電圧入力対応_引継ぎ.md`：Lintarohさんが書いた、UNO QをPIC v8のDefi電圧入力（PRESS・TEMP1・TEMP2）に対応させる引継ぎ（2026-11-01）。こちらの受け取り側はSG-4-3
 
 ## `docs/design/` — 仕様・設計
 
@@ -54,6 +57,8 @@
 - `docs/design/kart_parts_list_20261028.md`：カート用ロガー試作0号の**部品リスト**（KT-2-1。DigiKey・秋月・Amazonの品番・価格・リンク、ステアリング角の部品込みで約4.9万円、センサー無しの最小構成なら約2.6万円）。**基板は正規の店（DigiKey・Mouser・RS等）だけで買う**（Amazonは基板以外のみ）。マイコンはAdafruit ESP32-S3 Feather、GNSSはu-blox NEO-M9N単体を自作の載せ台基板に載せる（4種類の衛星で25Hz）。**画面（Adafruit 4694）とNEO-M9Nは国内在庫が無く先行注文が要る**
 - `docs/design/kart_gnss_carrier_design.md`：カート用ロガーの**GNSSの載せ台基板**（KT-3-2）の回路と配置の案。NEO-M9N単体＋Taoglasの25mm角パッシブパッチを載せる40×40mmの2層基板、ピン全24本のつなぎ先、部品表（DigiKey・秋月）、アンテナの線の寸法、組み立て・確かめ方、Lintarohさんに見てほしい点。配置図は`docs/design/kart_gnss_carrier_layout.svg`
 - `docs/design/unoq_software_inventory.md`：本体のソフト（`RaceCapture-UNOQ/`・`EcoCapture-Web/`）を「いま動いているもの／公式アプリ用／通話／試験／古い候補」に分けた一覧（2026-11-13、SP-2-4）。公式アプリを外すとき（SP-7-3）の材料。本体で有効かどうかは「要確認」のまま
+- `docs/design/logger_v2_channel_and_sensor_spec.md`：Ver.2への入力・出力チャンネルの仕様（回路担当の宿題6・7・8。外部CANのチャンネルごとの用途、油温・油圧センサーの選定、追加で記録したい車体の信号）。外部CANのID割り当て表の正は`sensorhub_generic_spec.md`
+- `docs/design/logger_v2_gnss_i2c_design.md`：Ver.2のGNSSをI²C（DDC）にしてIMUとバスを分け合う設計メモ（回路担当の宿題1・2）
 
 ## `docs/manual/` — 手順書
 
@@ -63,6 +68,11 @@
 - `docs/manual/sugo_day_manual_20261108.html`：SUGOの当日用A4手順書（SG-5-1、**10/30の下書き**。11/5に警告の数値などを入れて仕上げる）。Ver.2をSUGO用の設定へ切り替える道具とラップのリセットは`tools/sugo_setup/`（`sugo_setup.py`・`Reset-Laps.cmd`）。PIC v8の電圧（`PressVolt`・`Temp1Volt`・`Temp2Volt`、0x580）を信号に登録する道具も同じ場所の`defi_volt_setup.py`（既定は確かめるだけ、`--apply`で登録）。その電圧からDefiの油温・水温を℃にする（`OilTemp`をTEMP2へ差し替え、`WaterTempDefi`を足す）のは`defi_temp_setup.py`（`--pullup`でDefi内部の抵抗を変える）。セクターのタイム（2026-11-07）を本体（`lap.py`・DASH）と5B（タイム表）へ入れるのは`install_sectors.py`（既定は確かめるだけ、`--apply`で本体、`--server`で5B）
 - `docs/manual/android_circuit_handoff_20261104.md`：予備の車載画面（EcoLoggerアプリの「サーキット」、SG-2-8）を、DASHの油圧の警告・同時表示・1分の点滅・約10秒の警報音に合わせた分の引継ぎ。**PCでやること**（Gradleでのビルドと試験86件、エミュレーターで`circuit_mock.py`の`press=70`などを見る、スマホへの導入、本体への`field.py`）と、DASHと違うところ
 - `docs/manual/rename_local_folder.md`：このPCの作業フォルダー名を`RaceCapture`から`EcoLogger`へ変える手順（SP-9-9。古い名前を通り道として残す、Claudeの記憶を写す、ショートカットを作り直す、戻し方）。**まだ実行していない**
+- `docs/manual/ecologger_system_overview.html`：EcoLoggerの全体像（エコラン大会、2026-10時点）。チーム向けの1枚
+- `docs/manual/ecologger_troubleshooting.html`：困ったときの手順集（ロガー担当向け、エコラン大会の頃の構成）
+- `docs/manual/ecorun_flow_20261024.html`：エコラン全国大会の出発前〜帰宅後の流れ
+- `docs/manual/ncec_field_procedure.md`・`docs/manual/mazda2_field_procedure.md`・`docs/manual/lexus_ux_field_procedure.md`：Ver.1の頃の自作CAN解析基板（XIAO ESP32C3＋MCP2562FD）での実車CAN・OBD2の現地手順書（NCEC・MAZDA2・レクサスUX）。**NCECの前は`ncec_next_session_checklist.md`を先に開く**
+- `docs/manual/podium_auto_link_test_plan.md`：Podium送信のWi-Fi⇔LTE自動切替の実機試験計画（ER-1-6、2026-10-15）
 
 ## `docs/research/` — 調査
 
@@ -72,3 +82,13 @@
 - `docs/research/phone_lap_accuracy_20261115.md`：スマホ（測位1Hz）の周のタイムがどれだけ正しいか（SP-7-7、2026-11-15）。数え方は変えない（誤差はスマホの位置のゆっくりしたずれで、エコランの速さで約0.2〜0.3秒）
 - `docs/research/defi_sensor_curves_research.md`：Defiの油圧・温度センサーの電圧特性の調べもの（Defiは公式に非公開。海外フォーラムの実測表・個人サイトのメーター換算・公式のコネクター色を集め、2026-11-03〜04の実測と照合）。油圧は P[kPa]≒250×(V−V0)、温度はβが高温ほど大きい
 - `docs/research/kart_logger_study_20261027.md`：**レーシングカート（KT100）用の画面付き一体型ロガー**の調査資料。使う人向けに、できること・できないこと、MyLapsのラインを直接は検知できない理由とラップの取り方（GPS・磁気ストリップ・赤外線ビーコン）、**公式レースではアクセル開度・ブレーキ圧・ステアリング角を付けられない規則（CIK-FIA、2023年版の3.8・9.8）**、画面（反射型のメモリー液晶）と電源、ステアリング角の付け方とわかること（7章。ロガーがハンドルと一緒に回るためIMUのGをそのまま使えない件も）、富士スピードウェイ カートコースの情報、予算の目安
+- `docs/research/LOGGER_V2_UNOQ_REPORT.md`：Ver.2（UNO Q）のGNSS選定とセンサーフュージョンの構想（回路担当への共有用）。7章の`E-x`はVer.2の判断の記録（`ARCHITECTURE.md` 5章冒頭の表）
+- `docs/research/LOGGER_V2_LTE_MODEM_REPORT.md`・`docs/research/LOGGER_V2_LTE_MODEM_QUESTIONS.md`：LTEモデム（SIM7070G）の評価と、回路担当への相談メモ（2026-09）
+- `docs/research/logger_v2_lte_sim_survey.md`：日本とドイツの両方で使えるLTE-MのSIMの調べ（回路担当の宿題9）
+- `docs/research/OBD2_SURVEY.md`：ELM327での実車のOBD2プロトコル・PIDの調査記録（Phase 2-0の一次資料、「NCEC 追補」に実測）
+- `docs/research/vehicle_can_survey_summary.md`：実車のCAN・OBD2で測った事実だけの1枚（回路担当への共有用）
+- `docs/research/lap_detection_survey_20261014.md`：ラップ判定の比べ（RaceCapture・RaceChrono・Ver.2の`lap.py`、ER-2-4）。RaceCaptureのファームはGPLv3なので考え方だけ取り込んだ
+- `docs/research/podium_connect_notes.md`：Podium・Podium Connectで分かっていること・未確認のこと（Ver.2で使う検討用）
+- `docs/research/ecorun_final_plan_20261023.md`：エコラン大会の出発前〜当日のロガーの計画（優先順位：記録＞ピット＞ラップ＞音声＞油温）
+- `docs/research/test_drive_20261024_night.md`：10/24夜の試験走行（ピット画面の修正ER-8-10の確かめ。ER-11-21でアプリを変えたときも同じ手順）
+- `docs/research/ecorun_race_20261025_supercub_timeout.md`：大会2日目のスーパーカブの規定時間オーバーの振り返りと対策案（ER-13、読み取りだけで調べた）
