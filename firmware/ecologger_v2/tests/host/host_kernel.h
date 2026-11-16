@@ -134,6 +134,8 @@ inline unsigned irq_lock() { return 0; }
 inline void irq_unlock(unsigned) {}
 namespace host { inline bool resetRequested = false; }
 [[noreturn]] inline void NVIC_SystemReset() { host::resetRequested = true; host::fatal("NVIC_SystemReset (the loop watchdog fired)"); }
+#define SYS_REBOOT_COLD 1  // the 2026-10-04 firmware reset with sys_reboot (zephyr/sys/reboot.h)
+[[noreturn]] inline void sys_reboot(int) { host::resetRequested = true; host::fatal("sys_reboot (the loop watchdog fired)"); }
 
 // ---- Arduino ---------------------------------------------------------------------------------------------
 class String {

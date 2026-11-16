@@ -256,10 +256,10 @@ def decode_all(view):
     return samples, sensors
 
 
-def rows_from_sd(sd):
+def rows_from_sd(sd, with_nav=True):
     rows, can = [], []
     for kind, ms, data in sd:
-        if kind in (1, 2, 4):
+        if kind in ((1, 2, 4) if with_nav else (1, 4)):
             rows.append((ms, data.hex()))
         elif kind == 3:
             ident = struct.unpack_from('<I', data, 1)[0]
@@ -272,7 +272,9 @@ def check_linux(view, sd, label, sd_complete=True):
     the ones after LOG0); otherwise the card misses records and holds a part of Linux's, in the same order."""
     rows = [r for kind, _, b in view if kind == 'T' for r in b['rows']]
     can = [c for kind, _, b in view if kind == 'T' for c in b['can']]
-    want_rows, want_can = rows_from_sd(sd)
+    # Firmware before 2026-11-09 puts only the IMU in the rows and the latest NAV-PVT in the status ("nav").
+    legacy = any('nav' in b for kind, _, b in view if kind == 'S')
+    want_rows, want_can = rows_from_sd(sd, with_nav=not legacy)
     got_rows = [(r[1], r[2]) for r in rows]
     got_can = [(c[0], c[1], c[2], c[3], c[4], c[5]) for c in can]
     if sd_complete:
@@ -287,7 +289,7 @@ def check_linux(view, sd, label, sd_complete=True):
     imu_rows = sum(1 for r in rows if len(r[2]) != 184)
     assert len(samples) == imu_rows, (len(samples), imu_rows)
     with_speed = sum(1 for s in samples if s['values'].get('GPSSpeed') is not None)
-    print(f'  {label}: Linuxへ IMUの行 {imu_rows}・NAV-PVTの行 {len(rows) - imu_rows}・CAN {len(can)}（SDに残った分と同じ並び・中身）、'
+    print(f'  {label}: Linuxへ IMUの行 {imu_rows}・NAV-PVTの行 {len(rows) - imu_rows}{"（この版はNAV-PVTを状態で渡す）" if legacy else ""}・CAN {len(can)}（SDに残った分と同じ並び・中身）、'
           f'HardwareDecoder のサンプル {len(samples)}（GPSの速さが入ったもの {with_speed}）、表示 {sensors}')
     return samples
 
