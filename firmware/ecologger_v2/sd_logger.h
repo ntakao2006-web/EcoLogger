@@ -83,12 +83,15 @@ static void sdFiles(unsigned skip=0){result="[";uint32_t c=rootCluster;unsigned 
 #ifndef SD_LOGGER_TEST_CARD
 // Single acquisition producer and SD consumer. No sensor work waits for filesystem writes.
 static uint8_t sdQueue[65536];
-static volatile uint32_t sdHead=0,sdTail=0,sdQueueDropped=0;
+// sdQueueMax: the deepest the queue has been since boot, in bytes (status sd_queue_max). Measured before
+// anyone shrinks the 64 KiB queue: SUGO wrote about 25 KB/s, so 64 KiB is about 2.5 s of SD stall.
+static volatile uint32_t sdHead=0,sdTail=0,sdQueueDropped=0,sdQueueMax=0;
 static bool sdFailed=false;
 static void sdRecord(uint8_t type,uint32_t ms,const uint8_t*p,int n){
  if(!recording||!sdMounted||sdFailed)return;
  uint32_t h=__atomic_load_n(&sdHead,__ATOMIC_RELAXED),t=__atomic_load_n(&sdTail,__ATOMIC_ACQUIRE);
  if(h-t+6+n>=sizeof(sdQueue)){sdQueueDropped++;return;}
+ if(h-t+6+n>sdQueueMax)sdQueueMax=h-t+6+n;
  uint8_t hdr[6]={type,(uint8_t)n};p32(hdr+2,ms);
  for(int i=0;i<6;i++)sdQueue[(h++)&65535]=hdr[i];
  for(int i=0;i<n;i++)sdQueue[(h++)&65535]=p[i];
