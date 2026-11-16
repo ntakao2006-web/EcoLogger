@@ -44,6 +44,28 @@ class SDDecodeTests(unittest.TestCase):
         self.assertAlmostEqual(float(rows[1]['OilTemp']),60.16);self.assertEqual(rows[1]['OilTempState'],'0');self.assertEqual(rows[1]['RPM'],'1000.0')
         self.assertEqual((rows[2]['OilTemp'],rows[2]['OilTempState']),('','1'))                     # open sensor is not a temperature
         self.assertEqual((rows[3]['OilTempState'],rows[3]['RPM']),('4',''))                        # >1 s without a frame
+    def test_augmentation_records_go_to_gnss_jsonl(self):
+        """SP-7-8: records 5 (NAV-SAT counted) and 6 (NAV-SLAS head) do not stop the decoding and are kept apart."""
+        import json
+        sat=(5,50,struct.pack('<I5B',345600100,52,31,28,0,27))
+        slas=(6,60,struct.pack('<IB3xiiBBBB',345600100,0,140873,38259,7,184,3,24))
+        with tempfile.TemporaryDirectory() as tmp:
+            source=Path(tmp)/'EL000001.BIN';source.write_bytes(self.log([self.imu(10),sat,slas,self.imu(70)]))
+            out=convert(source,Path(tmp)/'out.csv')
+            self.assertEqual((out['rows'],out['gnss_aux']),(2,2))
+            lines=[json.loads(x) for x in (Path(tmp)/'out.csv.gnss.jsonl').read_text(encoding='utf-8').splitlines()]
+        self.assertEqual(lines[0],{'kind':'sat','itow_ms':345600100,'svs':52,'used':31,'diff':28,'sbas':0,'slas':27,'mcu_ms':50})
+        self.assertEqual(lines[1],{'kind':'slas','itow_ms':345600100,'gms_lon':140.873,'gms_lat':38.259,'gms_code':7,'qzss_sv':184,
+                                   'gms_available':True,'qzss_available':True,'test_mode':False,'corrections':24,'mcu_ms':60})
+    def test_no_gnss_jsonl_without_augmentation_records(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source=Path(tmp)/'EL000001.BIN';source.write_bytes(self.log([self.imu(10)]))
+            self.assertEqual(convert(source,Path(tmp)/'out.csv')['gnss_aux'],0)
+            self.assertFalse((Path(tmp)/'out.csv.gnss.jsonl').exists())
+    def test_bad_augmentation_record_is_an_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source=Path(tmp)/'EL000001.BIN';source.write_bytes(self.log([(5,1,bytes(8))]))
+            with self.assertRaisesRegex(ValueError,'NAV-SAT'):convert(source,Path(tmp)/'out.csv')
     def test_mcu_restart_drops_previous_values(self):
         from models import Configuration,Signal
         config=Configuration(signals=[Signal(name='Boost',channel=2,can_id=0x500,byte_offset=0,data_type='uint8')])

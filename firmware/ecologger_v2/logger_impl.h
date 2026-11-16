@@ -41,8 +41,13 @@ static int iw(uint8_t r,uint8_t v){int rc=i2c_reg_write_byte(bus,imuAddr,r,v);if
 static void imuISR(){irqRise++;}
 static void imuInit(){uint8_t id=0;for(int a=0x28;a<=0x29;a++)if(!i2c_reg_read_byte(bus,a,0,&id)&&id==0xa0){imuAddr=a;break;}if(!imuAddr)return;iw(7,0);iw(0x3d,0);delay(25);iw(0x3e,0);iw(0x3b,0);iw(0x3f,0x80);delay(20);iw(7,1);iw(0x10,0x40);iw(0x0f,0x40);iw(0x12,0x1c);iw(0x11,8);iw(7,0);iw(0x3d,12);delay(25);}
 static void sdRecord(uint8_t,uint32_t,const uint8_t*,int);
+#include "ubx_parse.h"
 static void imuPoll(){bool valid=imuAddr&&!i2c_burst_read(bus,imuAddr,8,raw,46);if(imuAddr&&!valid)imuErrors++;seq++;if(valid){sdRecord(1,millis(),raw,46);if(digitalRead(A5)){i2c_reg_read_byte(bus,imuAddr,0x37,&irqStatus);iw(0x3f,0xc0);}}else sdRecord(4,millis(),nullptr,0);char h[64];snprintf(h,sizeof(h),"[%lu,%lu,\"",(unsigned long)seq,(unsigned long)millis());if(!queueRow(rows,h,raw,valid?46:0,5500)&&recording)dropped++;}
-static void gnssPoll(){static uint8_t f[100];static unsigned pos=0,len=0;uint8_t n[2];if(i2c_burst_read(bus,0x42,0xfd,n,2)){gnssErrors++;return;}int count=min(1024,((int)n[0]<<8)|n[1]);while(count>0){uint8_t b[64];int take=min(64,count);if(i2c_burst_read(bus,0x42,0xff,b,take)){gnssErrors++;break;}count-=take;for(int j=0;j<take;j++){uint8_t v=b[j];if(pos==0&&v!=0xb5)continue;if(pos==1&&v!=0x62){pos=v==0xb5?1:0;continue;}f[pos++]=v;if(pos==6){len=6+f[4]+(f[5]<<8)+2;if(len>100){pos=0;continue;}}if(pos>=6&&pos==len){uint8_t a=0,c=0;for(unsigned k=2;k<len-2;k++){a+=f[k];c+=a;}if(a==f[len-2]&&c==f[len-1]&&f[2]==1&&f[3]==7&&len==100){memcpy(nav,f+6,92);gnssAt=millis();sdRecord(2,gnssAt,nav,92);char h[64];snprintf(h,sizeof(h),"[%lu,%lu,\"",(unsigned long)seq,(unsigned long)gnssAt);queueRow(rows,h,nav,92,5500);}pos=0;}}}}
+// GNSS over I2C (DDC). NAV-PVT goes to SD and Linux; NAV-SAT (summarised) and the NAV-SLAS header go to SD only,
+// once a second (SP-7-8: which augmentation, SBAS or QZSS SLAS, the solution used). At most 256 bytes per call
+// (about 6 ms of I2C): NAV-SAT is about 0.7 KB and is read over a few calls, so the loop never waits ~18 ms for it.
+static UbxParser ubx;
+static void gnssPoll(){uint8_t n[2];if(i2c_burst_read(bus,0x42,0xfd,n,2)){gnssErrors++;return;}int count=min(256,((int)n[0]<<8)|n[1]);while(count>0){uint8_t b[64];int take=min(64,count);if(i2c_burst_read(bus,0x42,0xff,b,take)){gnssErrors++;break;}count-=take;for(int j=0;j<take;j++){if(!ubx.feed(b[j])||ubx.f[2]!=1)continue;uint8_t *f=ubx.f;if(f[3]==7&&ubx.len==100){memcpy(nav,f+6,92);gnssAt=millis();sdRecord(2,gnssAt,nav,92);char h[64];snprintf(h,sizeof(h),"[%lu,%lu,\"",(unsigned long)seq,(unsigned long)gnssAt);queueRow(rows,h,nav,92,5500);}else if(f[3]==0x35&&ubx.len>=16){uint8_t s[9];memcpy(s,f+6,4);s[4]=f[11];memcpy(s+5,ubx.sat,4);sdRecord(5,millis(),s,9);}else if(f[3]==0x42&&ubx.len>=28)sdRecord(6,millis(),f+6,20);}}}
 static uint8_t rr(uint8_t a){k_mutex_lock(&spiLock,K_FOREVER);digitalWrite(D10,LOW);sp(3);sp(a);uint8_t v=sp(255);digitalWrite(D10,HIGH);k_mutex_unlock(&spiLock);return v;}
 static void wr(uint8_t a,uint8_t v){k_mutex_lock(&spiLock,K_FOREVER);digitalWrite(D10,LOW);sp(2);sp(a);sp(v);digitalWrite(D10,HIGH);k_mutex_unlock(&spiLock);}
 static void bm(uint8_t a,uint8_t m,uint8_t v){k_mutex_lock(&spiLock,K_FOREVER);digitalWrite(D10,LOW);sp(5);sp(a);sp(m);sp(v);digitalWrite(D10,HIGH);k_mutex_unlock(&spiLock);}
@@ -88,7 +93,7 @@ static void profile(){
  uint8_t safe[]={0,1,0,0,1,0,0x21,0x30,0xe8,3};ubxConfig(safe,sizeof(safe));
  uint32_t keys[]={0x1031001f,0x10310001,0x10310021,0x10310007,0x10310022,0x1031000d,0x1031000f,0x10310025,0x10310018,0x10310024,0x10310012,0x10310020,0x10310005};
  uint8_t p[80]={0,1,0,0};for(int i=0;i<13;i++){memcpy(p+4+5*i,keys+i,4);p[8+5*i]=i==5?0:1;}ubxConfig(p,69);
- uint8_t rate[]={0,1,0,0,1,0,0x72,0x10,1,2,0,0x72,0x10,0,6,0,0x91,0x20,1,1,0,0x21,0x30,100,0,2,0,0x21,0x30,1,0,0x21,0,0x11,0x20,4};ubxConfig(rate,sizeof(rate));
+ uint8_t rate[]={0,1,0,0,1,0,0x72,0x10,1,2,0,0x72,0x10,0,6,0,0x91,0x20,1,0x15,0,0x91,0x20,10,0x36,3,0x91,0x20,10,1,0,0x21,0x30,100,0,2,0,0x21,0x30,1,0,0x21,0,0x11,0x20,4};ubxConfig(rate,sizeof(rate));
 }
 
 
@@ -101,7 +106,10 @@ static void sdWrite(String c){uint32_t sector=strtoul(c.substring(1).c_str(),nul
 
 
 #include "sd_logger.h"
+// FORMAT16 (bench card only) is left out of the normal image to keep static RAM under the boot limit (SP-7-8).
+#ifdef LOGGER_BENCH_FORMAT
 #include "sd_format.h"
+#endif
 static uint32_t sectorCursor; static bool sectorCursorValid=false;
 static bool sectorBounds(uint32_t lba){return sdReady&&!recording&&!sdLogging&&!sdWorking&&(!lba||(sdMounted&&lba>=partStart&&lba-partStart<partSize));}
 static void sdRead(uint32_t lba){sectorCursorValid=sectorBounds(lba);sectorCursor=lba;result=sectorCursorValid?"sector ready":"SD_READ_REJECTED";}
@@ -119,7 +127,11 @@ static String sectorRead(){if(!sectorCursorValid||!sectorBounds(sectorCursor))re
 #include "lte_uart.h"
 static void bridgeWorker(void*,void*,void*){Bridge.begin(921600);Bridge.provide("logger.status",readState);Bridge.provide("logger.take",take);Bridge.provide("logger.command",submit);Bridge.provide("logger.sdread",sectorRead);Bridge.provide("logger.lter",lteRead);Bridge.provide("logger.ltex",lteWrite);}
 
-static void execute(String c){watchdogPaused=true;if(c=="FORMAT16")format16GB();else if(c.startsWith("FILES")){if(sdLogging||sdWorking||recording)result="SD_BUSY_RECORDING";else sdFiles(strtoul(c.c_str()+5,nullptr,10));}else if(c=="SD"){if(sdLogging||sdWorking)result="SD_BUSY_RECORDING";else sdInit();}else if(c.startsWith("R"))sdRead(strtoul(c.c_str()+1,nullptr,10));else if(c.startsWith("W")){if(sdLogging||sdWorking)result="SD_BUSY_RECORDING";else {sdWrite(c);fatCached=0xffffffff;}}else if(c.startsWith("H")){int colon=c.indexOf(':');unsigned offset=strtoul(c.substring(1,colon).c_str(),nullptr,10);int n=(c.length()-colon-1)/2;result=colon>0&&offset+n<=512&&decode(c.substring(colon+1),sdScratch+offset,n)==n?"loaded":"rejected";}else if(c.startsWith("C")){uint32_t bitrate=strtoul(c.c_str()+1,nullptr,10);if(bitrate==125000||bitrate==250000||bitrate==500000||bitrate==1000000){can1Init(bitrate);can2Init(bitrate);result="CAN1 listen-only / CAN2 sensor hub configured";}else result="invalid bitrate";}else if(c=="LOG1"||c=="LOG0"){recording=c=="LOG1";if(!recording){if(sdFailed)sdTail=sdHead;uint32_t until=millis()+20000;while((sdLogging||sdWorking||sdHead!=sdTail)&&millis()<until)delay(1);}result=recording?"recording":"stopped";}else result="unsupported";completed++;watchdogPaused=false;}
+static void execute(String c){watchdogPaused=true;if(0){}
+#ifdef LOGGER_BENCH_FORMAT
+else if(c=="FORMAT16")format16GB();
+#endif
+else if(c.startsWith("FILES")){if(sdLogging||sdWorking||recording)result="SD_BUSY_RECORDING";else sdFiles(strtoul(c.c_str()+5,nullptr,10));}else if(c=="SD"){if(sdLogging||sdWorking)result="SD_BUSY_RECORDING";else sdInit();}else if(c.startsWith("R"))sdRead(strtoul(c.c_str()+1,nullptr,10));else if(c.startsWith("W")){if(sdLogging||sdWorking)result="SD_BUSY_RECORDING";else {sdWrite(c);fatCached=0xffffffff;}}else if(c.startsWith("H")){int colon=c.indexOf(':');unsigned offset=strtoul(c.substring(1,colon).c_str(),nullptr,10);int n=(c.length()-colon-1)/2;result=colon>0&&offset+n<=512&&decode(c.substring(colon+1),sdScratch+offset,n)==n?"loaded":"rejected";}else if(c.startsWith("C")){uint32_t bitrate=strtoul(c.c_str()+1,nullptr,10);if(bitrate==125000||bitrate==250000||bitrate==500000||bitrate==1000000){can1Init(bitrate);can2Init(bitrate);result="CAN1 listen-only / CAN2 sensor hub configured";}else result="invalid bitrate";}else if(c=="LOG1"||c=="LOG0"){recording=c=="LOG1";if(!recording){if(sdFailed)sdTail=sdHead;uint32_t until=millis()+20000;while((sdLogging||sdWorking||sdHead!=sdTail)&&millis()<until)delay(1);}result=recording?"recording":"stopped";}else result="unsupported";completed++;watchdogPaused=false;}
 void setup(){out(A3,LOW);out(A2,LOW);out(D4,HIGH);out(D10,HIGH);out(A4,HIGH);out(A0,HIGH);out(D3,HIGH);out(D2,LOW);out(D7,LOW);out(A1,HIGH);pinMode(D8,INPUT);out(D11,LOW);out(D13,LOW);pinMode(D12,INPUT);pinMode(A5,INPUT);pinMode(D6,INPUT);attachInterrupt(A5,imuISR,RISING);leds(128);i2c_configure(bus,I2C_MODE_CONTROLLER|I2C_SPEED_SET(I2C_SPEED_FAST));profile();imuInit();sdInit();can1Init(500000);can2Init(500000);sdMounted=mountCard();if(sdMounted&&!newSDLog())sdFailure();startSDWorker();k_thread_create(&can1Thread,can1Stack,K_THREAD_STACK_SIZEOF(can1Stack),can1Capture,nullptr,nullptr,nullptr,2,0,K_NO_WAIT);imuAt=millis();loopHeartbeat=millis();k_timer_init(&watchdogTimer,loopWatchdog,nullptr);k_timer_start(&watchdogTimer,K_SECONDS(5),K_SECONDS(5));k_thread_create(&lteThread,lteStack,K_THREAD_STACK_SIZEOF(lteStack),lteWorker,nullptr,nullptr,nullptr,4,0,K_NO_WAIT);k_thread_create(&bridgeThread,bridgeStack,K_THREAD_STACK_SIZEOF(bridgeStack),bridgeWorker,nullptr,nullptr,nullptr,5,0,K_NO_WAIT);}
 void loop(){loopHeartbeat=millis();String c;k_mutex_lock(&lock,K_FOREVER);c=queued;queued="";k_mutex_unlock(&lock);
 #ifdef LOGGER_STALL_TEST

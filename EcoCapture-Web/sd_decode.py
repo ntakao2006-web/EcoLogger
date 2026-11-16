@@ -5,6 +5,10 @@ column decoded exactly as the logger does live (hardware.HardwareDecoder): a val
 is kept for 1 s after its frame, and sensor-hub oil temperature adds <name>State
 (0 OK, 1 open, 2 short, 3 bad frame, 4 no frame). Raw frames still go to .can.jsonl.
 
+Since SP-7-8 (2026-11-17) the logger also writes, once a second, which augmentation the
+receiver used: record 5 (NAV-SAT counted by the STM32) and record 6 (the NAV-SLAS head).
+They go to .gnss.jsonl (see gnss_aux); files without them get no .gnss.jsonl.
+
 LongAccel/LatAccel/VertAccel are the car's axes from the mounting calibration, run
 over the file exactly as the logger runs it live (imu_mount.py). The SD card holds
 only the raw IMU, so the calibration starts from --mount (GET /api/imu/mount, or the
@@ -35,6 +39,22 @@ def records(stream):
             yield kind,stamp,block[pos:pos+size]
             pos+=size
 
+def gnss_aux(kind,data):
+    """SD record 5 or 6 as a dict (SP-7-8), None for any other kind. u-blox M10 SPG 5.10 3.15.13 / 3.15.16.
+    5, NAV-SAT counted by the STM32: satellites in the message, used for navigation, used and with differential
+    correction data, used with SBAS corrections, used with QZSS SLAS corrections.
+    6, the 20-byte head of NAV-SLAS: the ground monitoring station and QZSS satellite whose corrections are used."""
+    if kind==5:
+        if len(data)!=9:raise ValueError('Invalid NAV-SAT summary record')
+        itow,svs,used,diff,sbas,slas=struct.unpack('<I5B',data)
+        return {'kind':'sat','itow_ms':itow,'svs':svs,'used':used,'diff':diff,'sbas':sbas,'slas':slas}
+    if kind==6:
+        if len(data)!=20:raise ValueError('Invalid NAV-SLAS record')
+        itow,lon,lat,code,sv,flags,count=struct.unpack('<I4xii4B',data)
+        return {'kind':'slas','itow_ms':itow,'gms_lon':lon/1000,'gms_lat':lat/1000,'gms_code':code,'qzss_sv':sv,
+                'gms_available':bool(flags&1),'qzss_available':bool(flags&2),'test_mode':bool(flags&4),'corrections':count}
+    return None
+
 FIELDS=['mcu_ms','AccelX','AccelY','AccelZ','GyroX','GyroY','GyroZ','Roll','Pitch','LongAccel','LatAccel','VertAccel','Lat','Lon','Altitude','GPSSpeed','GPSFix','GPSSats','gnss_itow_ms','imu_raw','imu_calibration','imu_mount']
 
 def can_columns(config):
@@ -51,7 +71,7 @@ def convert(source,target,config=None,decoder=None,mount=None):
     """Pass the same decoder for consecutive files so a value (and the mounting calibration) is not lost at each
     file boundary. mount: a saved calibration (imu_mount.py state) to start from when no decoder is passed.
     Without config and decoder this needs only imu_mount.py next to it (the Web screen's download)."""
-    nav=None;gnss_at=None;count=0;can_count=0;last_ms=None
+    nav=None;gnss_at=None;count=0;can_count=0;last_ms=None;aux=[]
     can_path=Path(str(target)+'.can.jsonl')
     import json
     extra=can_columns(config) if config is not None else []
@@ -83,6 +103,9 @@ def convert(source,target,config=None,decoder=None,mount=None):
                 can.write(json.dumps(frame)+'\n');can_count+=1
                 if config is not None:decoder.feed_can([list(frame.values())],config)
                 continue
+            if kind in (5,6):
+                a=gnss_aux(kind,data);a['mcu_ms']=stamp;aux.append(json.dumps(a))
+                continue
             if kind not in (1,4):raise ValueError('Unknown record type')
             row={'mcu_ms':stamp}
             if nav is not None and (stamp-gnss_at)%2**32<1000:
@@ -103,7 +126,8 @@ def convert(source,target,config=None,decoder=None,mount=None):
                 state=imu.state()
                 if state is not last_mount:row['imu_mount']=json.dumps(state,separators=(',',':'));last_mount=state
             writer.writerow(row);count+=1
-    return {'rows':count,'can_frames':can_count,'csv':str(target)}
+    if aux:Path(str(target)+'.gnss.jsonl').write_text('\n'.join(aux)+'\n',encoding='utf-8')
+    return {'rows':count,'can_frames':can_count,'gnss_aux':len(aux),'csv':str(target)}
 
 def load_config(path):
     from models import Configuration
