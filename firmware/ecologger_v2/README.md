@@ -45,3 +45,36 @@ SDの記録の種類（1つの記録＝種類1バイト・長さ1バイト・MCU
 | 6 | NAV-SLASの頭（SP-7-8、1秒に1回）：iTOW・版・予約・使った監視局の経度・緯度（1e-3度）・監視局の番号・みちびきの衛星番号・印（bit0 監視局あり、bit1 衛星あり、bit2 試験中）・補正の数 | 20 |
 
 `sd_decode.py`は種類5・6を`<CSV>.gnss.jsonl`へ書く（無いファイルでは作らない）。
+
+## PCの再生の試験台（SP-7-9、2026-11-17）
+
+`tests/host/`：ファーム（`logger_impl.h`と、そこから読む`sd_logger.h`・`ubx_parse.h`・`lte_uart.h`）を**手を加えずに**WSLのg++で組み、SUGOの走行の記録を流し込んで論理だけを動かす。ファームのソースには試験台のための`#ifdef`を足していない。
+
+```
+python firmware/ecologger_v2/tests/host/test_replay.py
+```
+
+Windowsの`python`から動かす（組み立てと実行だけWSL。約1分）。入力は`drive_logs/20261111/run02_2049/v2_sd`（SUGO 11/8のシールドのSD）の`EL000100`から4本、約170秒・140km/h前後。`drive_logs`は位置を含むのでリポジトリに無く、このリポジトリかその上のフォルダーにあるものを探す（`--sd-dir`で渡せる）。入力の写しとSDの像は一時フォルダーに作って最後に消す。`--firmware <フォルダー>`で、本体の控えなど別の版のファームを同じ入力で動かせる（SP-7-8の前の版では、種類5が無いことで止まるのを確かめた）。
+
+しくみ：
+- `host_kernel.h`：Arduino・Zephyr・STM32の関数の代わり（`millis`・`delay`・`k_*`のスレッド・ミューテックス・`k_timer`、I2C、`GPIOB`・`FDCAN1`のレジスタ、`String`、`Bridge`）。時計は仮想の時刻で、スレッドは仮想の時刻の順に1本ずつ回す（優先度は本体の設定どおり、ループは5）。コードを走る時間は0で、時刻が進むのは`delay`・`k_msleep`・`k_usleep`・`k_busy_wait`だけ。
+- `host_devices.h`：偽の機器。BNO055（読むたびにその時点の最新のサンプルを返し、読んだものを全部控える）、受信機（NAV-PVTを元の時刻にUBXの電文に組み直して出す。NAV-SAT・NAV-SLASは1秒に1回の作り物）、FDCAN1（受信のFIFOは3件）、MCP25625（受信のバッファーは2つ）、SDカード（SPIの命令・書き込み後の待ち・128MiBのFAT32）、LEDのシフトレジスター。ビットバンギングのSPIはピンの上げ下げから1バイトずつ読み解く。
+- `replay.cpp`：入力を流し、Linuxの側（`server.py`と同じく`logger.status`を0.1秒・`logger.take`を0.05秒ごと）を仮想の時刻の中で動かす。最後に`LOG0`・`FILES0`。`--rpc-port`では代わりにBridgeのRPCを127.0.0.1のTCP（Arduino Routerと同じMessagePack-RPC）で出し、時計を実時間に合わせる。
+- `test_replay.py`：3つの段。(1) ふつうの再生、(2) SDの書き込みが途中の10秒、1ブロックごとに0.9秒止まる、(3) `EcoCapture-Web/telemetry_bridge.py`をTCPでつないで実時間で20秒。
+
+**この試験台で確かめられること**
+- 電文の読み取り：NAV-PVTが全部、中身そのままSDとLinuxへ行く。NAV-SAT（最大500バイトほど。256バイトずつの読み取りをまたぐ）・NAV-SLASが、1秒に1回の種類5・6になる
+- SDの書き方：1MiBのファイルを順に作り（5本目まで）、全ブロックのCRC・連番・ファイル番号、目次の大きさが合い、ふつうのFATの読み手（pyfatfs）で読める。SDのSPIの命令の順番（初期化・読み書き・書き込み後の待ちの間に命令を出さない）、`FILES`の一覧
+- 待ち行列の数え方：SDが止まって64KiBの待ち行列があふれると、捨てた数`sd_queue_dropped`とSDから欠けた記録の数が一致し、残った記録は入力の並びのまま。`sd_queue_max`はあふれる手前の65,534B。止まっている間もCAN・Linuxへの行は欠けない（SDの保存のスレッドが待つ間、SPIを離している）
+- 取得：CAN1・CAN2の受信が全部、入力と同じ並び・中身で残り、CAN1は元の記録と同じ時刻（ms）になる。IMUは読んだものが全部、読んだ時刻のまま残る。種類ごとに時刻が戻らない（種類をまたぐとCAN1が最大1ms前の時刻で後に来る）
+- 状態のJSON：`logger.status`・`logger.take`がJSONとして読め、`hardware.HardwareDecoder`がそのまま読める。`logger.command`（`C500000`・`LOG0`・`FILES0`）、`logger.sdread`でSDのブロックを読める。起動直後は「method logger.status not available」が返り、登録のあとで通る
+- ループの監視（`k_timer`）が普通の動きでは働かないこと
+
+**確かめられないこと**（本体で見る）
+- I2C・SPIの速さと、それでループが止まる長さ（コードを走る時間を0にしている）。スレッドの割り込み（優先度による横取り）も無く、切り替わるのは寝るときだけ
+- LLEXTのRAMの限界（`build_pc.sh`で本物のコンパイラーで組んで測る）
+- SDカードの書き込みの本当の止まり方（試験台では決めた長さを入れるだけ）
+- FDCANの受信のFIFOが3件であふれること（3件の作りはあるが、取り出すスレッドの遅れが本物ではない）。MCP25625の2つのバッファーも同じ
+- Linux側のUARTのDMAの不具合、RouterとUART（64バイトの受信の枠など）の通り道（TCPで置き換えている）、Bridgeの受信のスレッドの作り
+- 受信機が出す本物のNAV-SAT・NAV-SLAS、BNO055の割り込み（A5）、LTEのモデム
+- 電源・GNDなどの電気
