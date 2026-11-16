@@ -37,7 +37,7 @@
 - `docs/share/maruo_answer_YYYYMMDD.md`：**Maruo.Sさんからの回答の一次資料**。最新は`docs/share/maruo_answer_20261025.md`（ダッシュボード引き継ぎの確認事項への回答：入口は先輩が手で用意済み、ポートも先輩が直した、画面の更新はまだ。外から見た先輩のサーバーの状態と5Bとの違い）。その前が`docs/share/maruo_answer_20261018.md`（予備は先輩宅のラックサーバー、分散構成・Grafana不採用の方向、GitHub上の`4482ede`ではロガーの位置・音声がまだ出ないことの確認、こちらの宿題）
 - `docs/share/ogata_share_YYYYMMDD_*.md`：緒方さん（GitHub `ktrogt`、走行戦略ツールを作っているチームメンバー）への返信。`docs/share/ogata_share_20261024_issues_reply.md`は緒方さんがChatGPTで出した「既存の不具合と注意点」（`existing-issues.md`）への確認結果と、ブリッジのWebSocketの読み口（`kind=clock`）の説明
 - `docs/share/HANDOFF_2026*.md`・`docs/share/HANDOFF_*_20260915.md`：2026-09のVer.1（ESP32-S3）・EcoCaptureの作業の引継ぎ（09-02の統合、09-04のUX250h試験版、09-15のNCECへの反映・OBD限定送信・ファンの観測と暫定採用・状態表示）。当時の到達点の記録で、いまの正は`ARCHITECTURE.md`
-- `docs/share/minkara_ncec_can_draft_20261116.md`：**みんカラ投稿の下書き**（Phase 2-4-8-6、2026-11-16。まだ投稿していない）。NCのOBD2ポートのCANで確定した値の一覧と式、RaceChrono DIYの資料との違い（`0x200` byte7・`0x215` byte6はペダル）、この車だけの話（スロットルマップ・`0x4F0`/`0x4F1`・`0x4FF`）、取れないもの、調べ方、未解明。冒頭に投稿前に見てほしい点。図は`docs/share/minkara_ncec_throttle_map_20261116.png`
+- `docs/share/minkara_ncec_can_draft_20261116.md`：**みんカラ投稿の下書き**（Phase 2-4-8-6、2026-11-16。まだ投稿していない）。NCのOBD2ポートのCANで確定した値の一覧と式、RaceChrono DIYの資料との違い（`0x200` byte7・`0x215` byte6はペダル）、この車だけの話（スロットルマップは「純正と違う直線的な特性」とだけ書く・`0x4F0`/`0x4F1`・`0x4FF`）、取れないもの、調べ方、未解明。冒頭に投稿前に見てほしい点
 - `docs/share/ROADSTER_INVESTIGATION_20260915.md`：NCECの実車調査（2026-09-15）のまとめ。CANの解釈のいまの正は`docs/design/ncec_can_spec.md`
 - `docs/share/UNOQ_Defi電圧入力対応_引継ぎ.md`：Lintarohさんが書いた、UNO QをPIC v8のDefi電圧入力（PRESS・TEMP1・TEMP2）に対応させる引継ぎ（2026-11-01）。こちらの受け取り側はSG-4-3
 
