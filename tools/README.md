@@ -2,6 +2,7 @@
 
 道具ごとの説明。`CLAUDE.md`の「ファイル構成」にあった文面を2026-11-13にここへ移した（文面はそのまま）。
 **道具を足した・入口や置き場所を変えたときは、ここを直す。** 資料の説明は`docs/README.md`、道具をこの先どうまとめるかは`SPEC.md` 8章。
+PCの道具が使うPythonの外部パッケージの一覧は`tools/requirements.txt`（入れ方は`python -m pip install -r tools/requirements.txt`、前提は`docs/design/pc_app_requirements.md`）。
 
 ## フォルダーの一覧
 
