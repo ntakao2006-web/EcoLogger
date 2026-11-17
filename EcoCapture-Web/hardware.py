@@ -45,6 +45,15 @@ def defivolt_packet(raw, byte_offset):
     adc = adcs[byte_offset // 2]
     return adc, 1 if adc <= 4 else 2 if adc >= 4091 else 0
 
+
+def obd_label(obd):
+    """CAN1 in the status line: listen-only, or asking the ECU over OBD (SP-11, SPEC.md G-5)."""
+    if not obd:return '（受信専用）'
+    state,sent,rejected,snapshots=(list(obd)+[0,0,0,0])[:4]
+    if state==1:return f'（OBD読み出し中 送信{sent}・一括{snapshots}回）'+(f' 拒否{rejected}' if rejected else '')
+    if state==2:return '（送信エラーで受信専用に戻した）'
+    return '（受信専用・OBD待ち）'
+
 class HardwareDecoder:
     def __init__(self, mount=None):
         # LongAccel/LatAccel/VertAccel are the car's axes from the mounting calibration
@@ -138,7 +147,7 @@ class HardwareDecoder:
             samples.append({'schema':1,'source':'logger-v2-hardware','demo':False,'seq':seq,'mcu_ms':stamp,'values':v,'can_signals':decoded,'can_states':can_states,'gnss_utc':gnss_utc,'gnss_itow_ms':itow,'imu_raw':data,'imu_calibration':({'system':raw[45]>>6,'gyro':raw[45]>>4&3,'accel':raw[45]>>2&3,'mag':raw[45]&3} if imu_ok else None),'imu_temperature_C':(raw[44] if raw[44]<128 else raw[44]-256) if imu_ok else None,'quaternion':[q/16384 for q in x[12:16]] if imu_ok else None,'gnss_hacc_m':pvt['hacc'],'imu_mount':self.mount.state()})
         if not legacy and self.pvt is not None and 1000<=(status['mcu_ms']-self.pvt['at'])%2**32<2**31:self.lose_pvt()  # the status may be older than the rows
         fix=self.pvt is not None and self.pvt['fix']
-        return samples,{'imu':'正常' if status['imu_address'] else '未検出','gnss':'測位中' if fix else '測位待ち' if self.pvt is not None else '未受信','can':f"CAN1 {status['can_counts'][0]} フレーム（受信専用） / CAN2 センサーハブ {status['can_counts'][1]} フレーム",'sd':'未検出' if not status['sd_ready'] else '記録欠落あり' if status.get('sd_queue_dropped') else 'FAT32を認識できません' if status.get('sd_mounted') is False or status.get('sd_mounted')==0 else f"記録中 EL{status.get('sd_file',0):06}.BIN" if status.get('sd_logging') else '保存エラー' if status.get('sd_errors') else '認識済み' if status['sd_ready'] else '未検出','lte':'電源OFF / SIM・アンテナ未接続','camera':'未接続'}
+        return samples,{'imu':'正常' if status['imu_address'] else '未検出','gnss':'測位中' if fix else '測位待ち' if self.pvt is not None else '未受信','can':f"CAN1 {status['can_counts'][0]} フレーム{obd_label(status.get('obd'))} / CAN2 センサーハブ {status['can_counts'][1]} フレーム",'sd':'未検出' if not status['sd_ready'] else '記録欠落あり' if status.get('sd_queue_dropped') else 'FAT32を認識できません' if status.get('sd_mounted') is False or status.get('sd_mounted')==0 else f"記録中 EL{status.get('sd_file',0):06}.BIN" if status.get('sd_logging') else '保存エラー' if status.get('sd_errors') else '認識済み' if status['sd_ready'] else '未検出','lte':'電源OFF / SIM・アンテナ未接続','camera':'未接続'}
 
     def feed_can(self, frames, config):
         """Keep the last 1.5 s of each configured signal from [stamp,channel,id,extended,rtr,hex] frames."""

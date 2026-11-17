@@ -1,9 +1,15 @@
 import unittest,struct,tempfile,json
 from pathlib import Path
-from hardware import HardwareDecoder
+from hardware import HardwareDecoder,obd_label
 from models import Configuration,Signal,validate_sample
 from sd_storage import SDStorage
 class HardwareTests(unittest.TestCase):
+ def test_obd_label(self):
+  # SP-11: older firmware has no "obd" in its status; state 0 waits, 1 asks the ECU, 2 went back to listen-only.
+  self.assertEqual(obd_label(None),'（受信専用）')
+  self.assertEqual(obd_label([0,0,0,0]),'（受信専用・OBD待ち）')
+  self.assertEqual(obd_label([1,120,0,2]),'（OBD読み出し中 送信120・一括2回）')
+  self.assertEqual(obd_label([2,5,0,1]),'（送信エラーで受信専用に戻した）')
  def oil_config(self):
   return Configuration(signals=[Signal(name='OilTemp',unit='°C',channel=2,can_id=0x600,byte_offset=0,data_type='int16',scale=.01,conversion='sensorhub_oiltemp')])
  def oil_sample(self,decoder,packets,stamp=2000):

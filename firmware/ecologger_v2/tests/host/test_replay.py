@@ -294,12 +294,54 @@ def check_linux(view, sd, label, sd_complete=True):
     return samples
 
 
+def g5_allowed(can_id, d):
+    """SPEC.md G-5 (SP-11), written again here independently of obd_query.h."""
+    if d[0] == 0x30:
+        ok, used = can_id == 0x7E0 and d[1] == 0 and d[2] == 0, 3
+    elif d[0] == 1:
+        ok, used = can_id in (0x7E0, 0x7DF) and d[1] in (3, 7), 2
+    elif d[0] == 2:
+        ok, used = can_id in (0x7E0, 0x7DF) and (d[1] == 1 or (d[1] == 9 and d[2] != 2)), 3
+    else:
+        ok, used = False, 8
+    return ok and all(b == 0x55 for b in d[used:])
+
+
+def check_obd(summary, by, status):
+    """SP-11: the SUGO drive has no ECU at 0x7E8, so every snapshot is 0100, 03, 07, 0900 with no answer."""
+    if 'obd' not in status:
+        print('  OBD: この版は問い合わせない')
+        return
+    sent = summary['can1_tx']
+    state, count, rejected, snapshots = status['obd']
+    assert rejected == 0 and count == len(sent), (status['obd'], len(sent))
+    assert state == 1, status['obd']
+    for ms, can_id, normal, hexd in sent:
+        d = bytes.fromhex(hexd)
+        assert normal, 'CAN1 が受信だけ（または初期化中）のまま送った'
+        assert g5_allowed(can_id, d), f'G-5 で許していないフレーム {can_id:#x} {hexd}'
+    # Each SD type 7 record is a frame that was put on the bus, in the same order (SD only while recording).
+    rec = [(d[0] | d[1] << 8, d[2:10].hex()) for _, d in by[7]]
+    wire = [(i, h) for _, i, _, h in sent]
+    assert rec == wire[:len(rec)] and len(rec) >= len(wire) - 4, (len(rec), len(wire))
+    starts = [d[0] for _, d in by[8]]
+    assert snapshots == len(starts) and starts and starts[0] == 2 and set(starts[1:]) <= {1}, (snapshots, starts)
+    first = min(ms for ms, d in by[3] if d[0] == 1)
+    assert sent[0][0] - first >= 1000, '受信だけで1秒見る前に送った'
+    pattern = [bytes.fromhex(h)[1:3] for _, _, _, h in sent]
+    want = [bytes([1, 0]), bytes([3, 0x55]), bytes([7, 0x55]), bytes([9, 0])] * snapshots
+    assert pattern == want, pattern[:8]
+    print(f'  OBD: 受信だけで {sent[0][0] - first}ms 見てから送信へ。問い合わせ {len(sent)}件（区切り {snapshots}回 × 0100・03・07・0900。'
+          f'答えるECUが無いので補正などの続きは無し）、全部 G-5 の範囲、SDの種類7と同じ並び、拒んだ数 0')
+
+
 def check_normal(out, exp, summary, view):
     files = read_card(out)
     sd = sd_records(files)
-    by = {k: [(ms, d) for kk, ms, d in sd if kk == k] for k in range(1, 7)}
+    by = {k: [(ms, d) for kk, ms, d in sd if kk == k] for k in range(1, 9)}
     assert not [k for k, _, _ in sd if k not in by], 'SDに知らない種類の記録'
     status = summary['status']
+    check_obd(summary, by, status)
     st = {k: status.get(k) for k in ('seq', 'imu_errors', 'gnss_errors', 'dropped', 'can_counts', 'can_overflow', 'sd_errors', 'sd_queue_dropped',
                                  'sd_queue_max', 'sd_blocks', 'sd_logging', 'sd_alloc_ms')}
     print(f'  SD: {len(files)}本 {", ".join(f"{n}={len(b) // 1024}KiB" for n, b in files)}、記録 {len(sd)}件、ブロック {sum(len(b) for _, b in files) // 512}'

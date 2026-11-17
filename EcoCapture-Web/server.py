@@ -589,7 +589,7 @@ async def save_config(value: Configuration):
     atomic_json(CONFIG_PATH, value.model_dump())
     runtime.config = value
     runtime.config_error = None
-    return {"config": value.model_dump(), "applied_to_can": runtime.bridge is not None, "message": "設定を保存しました。CAN1は受信専用、CAN2はセンサーハブ受信で動作します。"}
+    return {"config": value.model_dump(), "applied_to_can": runtime.bridge is not None, "message": "設定を保存しました。CAN1は受信と、本番機（Ver.2）からのOBDの読み出し問い合わせだけ、CAN2はセンサーハブ受信で動作します。"}
 
 
 @app.get("/api/can/channels")

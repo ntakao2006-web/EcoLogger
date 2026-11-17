@@ -243,7 +243,7 @@ struct HostReg {
 struct HostGpio { HostReg MODER, OTYPER, OSPEEDR, PUPDR, IDR, ODR, BSRR, LCKR, AFR[2], BRR; };
 struct HostUsart { HostReg CR1, CR2, CR3, BRR, ISR, ICR, RDR, TDR; };
 struct HostRcc { HostReg APB1ENR2, CCIPR1; };
-struct HostFdcan { HostReg CCCR, NBTP, RXGFC, IR, RXF0S, RXF0A; };
+struct HostFdcan { HostReg CCCR, NBTP, RXGFC, IR, RXF0S, RXF0A, TXFQS, TXBAR, ECR, PSR; };
 struct HostFdcanConfig { HostReg CKDIV; };
 namespace host {
 inline HostGpio gpioA, gpioB;
@@ -271,6 +271,9 @@ alignas(8) inline uint8_t sramCan[1024];
 #define FDCAN_CCCR_CSA (1UL << 3)
 #define FDCAN_CCCR_CSR (1UL << 4)
 #define FDCAN_CCCR_MON (1UL << 5)
+#define FDCAN_CCCR_DAR (1UL << 6)
+#define FDCAN_PSR_EP (1UL << 5)
+#define FDCAN_PSR_BO (1UL << 7)
 #define FDCAN_CCCR_FDOE (1UL << 8)
 #define FDCAN_CCCR_BRSE (1UL << 9)
 #define FDCAN_IR_RF0L (1UL << 2)

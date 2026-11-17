@@ -118,6 +118,21 @@ inline void rxf0aWrite(HostReg &r, uint32_t v) {
   can1.get = (can1.get + 1) % 3; can1.fill--;
 }
 inline void irWrite(HostReg &r, uint32_t v) { r.v &= ~v; }  // write 1 to clear
+// ---- FDCAN1 TX FIFO (SP-11): three elements of 72 bytes at message RAM offset 632 ------------------------
+// Every frame the firmware sends is kept, with whether CAN1 was out of listen-only (and initialised) then.
+struct Can1Tx { uint64_t ms; uint32_t id; uint8_t d[8]; bool normal; };
+inline std::vector<Can1Tx> can1Tx;
+inline unsigned can1TxPut = 0;
+inline uint32_t txfqsRead(HostReg &) { return (uint32_t)can1TxPut << 16 | 3; }  // never full: the bus takes each frame at once
+inline void txbarWrite(HostReg &r, uint32_t v) {
+  r.v = v;
+  if (v != 1UL << can1TxPut) { problem("FDCAN TXBAR is not the put index"); return; }
+  const uint8_t *m = sramCan + 632 + can1TxPut * 72; uint32_t w[4]; memcpy(w, m, sizeof(w));
+  Can1Tx t{nowUs / 1000, (w[0] >> 18) & 0x7ff, {}, !(fdcan1.CCCR.v & (FDCAN_CCCR_MON | FDCAN_CCCR_INIT))};
+  for (int i = 0; i < 8; i++) t.d[i] = w[2 + i / 4] >> (8 * (i % 4));
+  if ((w[0] & (1UL << 30)) || ((w[1] >> 16) & 15) != 8) problem("FDCAN TX element is not a standard 8-byte frame");
+  can1Tx.push_back(t); can1TxPut = (can1TxPut + 1) % 3;
+}
 
 // ---- SPI devices -----------------------------------------------------------------------------------
 struct SpiDevice {
@@ -314,7 +329,7 @@ inline void devicesAdvance(uint64_t us) {
 inline void hookRegisters() {
   pins[D10] = pins[A4] = 1;
   gpioB.BSRR.wr = bsrrWrite; gpioB.IDR.rd = idrRead;
-  fdcan1.RXF0S.rd = rxf0sRead; fdcan1.RXF0A.wr = rxf0aWrite; fdcan1.IR.wr = irWrite;
+  fdcan1.RXF0S.rd = rxf0sRead; fdcan1.RXF0A.wr = rxf0aWrite; fdcan1.IR.wr = irWrite; fdcan1.TXFQS.rd = txfqsRead; fdcan1.TXBAR.wr = txbarWrite;
 }
 
 // A blank FAT32 card: MBR with one partition at 8192, a volume label in the root directory, and

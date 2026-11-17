@@ -62,6 +62,36 @@ class SDDecodeTests(unittest.TestCase):
             source=Path(tmp)/'EL000001.BIN';source.write_bytes(self.log([self.imu(10)]))
             self.assertEqual(convert(source,Path(tmp)/'out.csv')['gnss_aux'],0)
             self.assertFalse((Path(tmp)/'out.csv.gnss.jsonl').exists())
+    def test_obd_records_and_answers_go_to_obd_jsonl(self):
+        """SP-11: records 7 (sent) and 8 (snapshot) are accepted; 0x7E8 frames on CAN1 are put back together and decoded."""
+        import json
+        pad=lambda b:bytes(b)+b'\x55'*(8-len(b))
+        items=[(8,90,b'\x02'),(7,100,bytes([0xe0,7])+pad([2,1,0])),self.can(102,0x7E8,pad([6,0x41,0,0x98,0x3b,0x80,0x13]),channel=1),
+               (7,110,bytes([0xe0,7])+pad([2,1,0x10])),self.can(112,0x7E8,pad([4,0x41,0x10,0x01,0x2c]),channel=1),
+               self.can(113,0x7E8,pad([3,0x41,0x06,0x80]),channel=2),   # same id on the other bus is not the ECU
+               self.can(114,0x7E8,pad([3,0x41,0x07,0x7a]),channel=1),
+               self.can(120,0x7E8,bytes([0x10,0x08,0x43,0x03,0x01,0x01,0x01,0x02]),channel=1),(7,121,bytes([0xe0,7])+pad([0x30,0,0])),
+               self.can(123,0x7E8,pad([0x21,0x01,0x03]),channel=1),
+               self.can(130,0x7E8,bytes([0x10,0x13,0x49,0x04,0x01])+b'ABC',channel=1),self.can(132,0x7E8,b'\x21DEFGHIJ',channel=1),
+               self.can(133,0x7E8,b'\x22KLMNOP\x00',channel=1),self.can(140,0x7E8,pad([3,0x7f,1,0x12]),channel=1),self.imu(150)]
+        with tempfile.TemporaryDirectory() as tmp:
+            source=Path(tmp)/'EL000001.BIN';source.write_bytes(self.log(items))
+            out=convert(source,Path(tmp)/'out.csv')
+            lines=[json.loads(x) for x in (Path(tmp)/'out.csv.obd.jsonl').read_text(encoding='utf-8').splitlines()]
+        self.assertEqual((out['rows'],out['can_frames'],out['obd']),(1,10,10))
+        self.assertEqual(lines[0],{'kind':'snapshot','mcu_ms':90,'reason':'bus_alive'})
+        self.assertEqual(lines[1],{'kind':'sent','mcu_ms':100,'id':0x7e0,'data':'0201005555555555'})
+        self.assertEqual(lines[2]['supported'],[1,4,5,11,12,13,15,16,17,28,31,32])
+        self.assertEqual((lines[4]['name'],lines[4]['unit'],lines[4]['value']),('maf','g/s',3.0))
+        self.assertEqual((lines[5]['name'],lines[5]['value']),('ltft1',-4.688))
+        self.assertEqual(lines[6]['data'],'3000005555555555')
+        self.assertEqual((lines[7]['mcu_ms'],lines[7]['dtc']),(120,['P0101','P0102','P0103']))  # stamped with the first frame
+        self.assertEqual(lines[8]['calid'],'ABCDEFGHIJKLMNOP')
+        self.assertEqual((lines[9]['service'],lines[9]['raw']),(0x7f,'7f0112'))
+    def test_no_obd_jsonl_without_obd_records(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source=Path(tmp)/'EL000001.BIN';source.write_bytes(self.log([self.imu(10),self.can(12,0x7E8,bytes(8),channel=2)]))
+            self.assertEqual(convert(source,Path(tmp)/'out.csv')['obd'],0);self.assertFalse((Path(tmp)/'out.csv.obd.jsonl').exists())
     def test_bad_augmentation_record_is_an_error(self):
         with tempfile.TemporaryDirectory() as tmp:
             source=Path(tmp)/'EL000001.BIN';source.write_bytes(self.log([(5,1,bytes(8))]))

@@ -90,6 +90,13 @@ static void writeOutputs() {
   fprintf(f, "\"can1\":{\"delivered\":%llu,\"fifo_lost\":%llu,\"while_init\":%llu,\"not_listen_only\":%llu,\"bad_ack\":%llu,\"left\":%u},\n",
           (unsigned long long)can1.delivered, (unsigned long long)can1.lost, (unsigned long long)can1.whileInit, (unsigned long long)can1.notListenOnly,
           (unsigned long long)can1.badAck, can1.fill);
+  fprintf(f, "\"can1_tx\":[");
+  for (size_t i = 0; i < can1Tx.size(); i++) {
+    fprintf(f, "%s[%llu,%u,%d,\"", i ? "," : "", (unsigned long long)can1Tx[i].ms, can1Tx[i].id, can1Tx[i].normal);
+    for (int k = 0; k < 8; k++) fprintf(f, "%02x", can1Tx[i].d[k]);
+    fprintf(f, "\"]");
+  }
+  fprintf(f, "],\n");
   fprintf(f, "\"can2\":{\"delivered\":%llu,\"overflow\":%llu,\"not_ready\":%llu,\"resets\":%llu,\"mode\":%u},\n", (unsigned long long)mcp.delivered,
           (unsigned long long)mcp.overflow, (unsigned long long)mcp.notReady, (unsigned long long)mcp.resets, mcp.mode());
   fprintf(f, "\"sd\":{\"reads\":%llu,\"writes\":%llu,\"max_busy_us\":%llu,\"sectors\":%u},\n", (unsigned long long)sd.reads, (unsigned long long)sd.writes,

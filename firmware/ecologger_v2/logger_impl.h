@@ -13,8 +13,8 @@ static void loggerBridgeSerialInit(){
  LPUART1->CR3|=USART_CR3_RTSE|USART_CR3_CTSE;
  LPUART1->CR1=cr1|USART_CR1_FIFOEN;irq_unlock(key);
 }
-// Real acquisition. CAN1 stays listen-only. CAN2 is normal receive mode so it
-// can ACK the dedicated sensor hub; no application CAN frames are transmitted.
+// Real acquisition. CAN1 starts listen-only and sends nothing but the OBD requests obd_query.h allows (SP-11,
+// SPEC.md G-5). CAN2 is normal receive mode so it can ACK the dedicated sensor hub; it transmits nothing.
 K_MUTEX_DEFINE(lock);
 K_MUTEX_DEFINE(spiLock);
 static const device *bus=DEVICE_DT_GET(DT_NODELABEL(i2c2));
@@ -60,7 +60,8 @@ static volatile bool can1Ready=false;
 // The high-priority capture worker never allocates, takes SPI locks, or writes SD.
 // A single producer/consumer queue decouples the three-entry hardware FIFO from
 // JSON generation and filesystem latency. Timestamps are taken at capture.
-struct Can1Packet { uint32_t ms,id; uint8_t flags,n,data[8]; };
+// 17 bytes, packed (SP-11 needed the RAM): id holds the extended flag in bit 31 and the remote flag in bit 30.
+struct __attribute__((packed)) Can1Packet { uint32_t ms,id; uint8_t n,data[8]; };
 static Can1Packet can1Queue[128];
 static uint32_t can1Head=0,can1Tail=0;
 K_THREAD_STACK_DEFINE(can1Stack,1536);
@@ -76,8 +77,8 @@ static void can1Capture(void*,void*,void*) {
     FDCAN1->RXF0A=idx;
     uint32_t head=__atomic_load_n(&can1Head,__ATOMIC_RELAXED),tail=__atomic_load_n(&can1Tail,__ATOMIC_ACQUIRE);
     if(head-tail<128) {
-     Can1Packet &p=can1Queue[head&127];p.ms=at;p.id=(h&(1UL<<30))?h&0x1fffffff:(h>>18)&0x7ff;
-     p.flags=((h>>30)&1)|(((h>>29)&1)<<1);p.n=min(8,(int)((d>>16)&15));memcpy(p.data,data,8);
+     Can1Packet &p=can1Queue[head&127];p.ms=at;p.id=((h&(1UL<<30))?(h&0x1fffffff)|(1UL<<31):(h>>18)&0x7ff)|(h&(1UL<<29))<<1;
+     p.n=min(8,(int)((d>>16)&15));memcpy(p.data,data,8);
      __atomic_store_n(&can1Head,head+1,__ATOMIC_RELEASE);
     } else __atomic_fetch_add(&canOverflow[0],1,__ATOMIC_RELAXED);
    }
@@ -86,8 +87,17 @@ static void can1Capture(void*,void*,void*) {
   k_usleep(100);
  }
 }
-static void can1Init(uint32_t bitrate){can1Ready=false;RCC->APB1ENR2|=RCC_APB1ENR2_FDCAN1EN;RCC->CCIPR1&=~RCC_CCIPR1_FDCANSEL;GPIOA->MODER=(GPIOA->MODER&~((3UL<<22)|(3UL<<24)))|(2UL<<22)|(2UL<<24);GPIOA->AFR[1]=(GPIOA->AFR[1]&~((15UL<<12)|(15UL<<16)))|(9UL<<12)|(9UL<<16);FDCAN1->CCCR&=~FDCAN_CCCR_CSR;uint32_t wake=millis()+50;while((FDCAN1->CCCR&FDCAN_CCCR_CSA)&&millis()<wake){}FDCAN1->CCCR|=FDCAN_CCCR_INIT;uint32_t end=millis()+50;while(!(FDCAN1->CCCR&1)&&millis()<end){}if(!(FDCAN1->CCCR&1))return;FDCAN1->CCCR|=FDCAN_CCCR_CCE;FDCAN_CONFIG->CKDIV=0;FDCAN1->NBTP=((16000000UL/(bitrate*16)-1)<<16)|(12UL<<8)|1;FDCAN1->RXGFC=0;FDCAN1->CCCR=(FDCAN1->CCCR|FDCAN_CCCR_MON)&~(FDCAN_CCCR_FDOE|FDCAN_CCCR_BRSE);FDCAN1->CCCR&=~FDCAN_CCCR_INIT;can1Ready=true;}
-static void can1Poll(){for(unsigned budget=0;budget<128;++budget){uint32_t tail=__atomic_load_n(&can1Tail,__ATOMIC_RELAXED),head=__atomic_load_n(&can1Head,__ATOMIC_ACQUIRE);if(tail==head)break;Can1Packet p=can1Queue[tail&127];__atomic_store_n(&can1Tail,tail+1,__ATOMIC_RELEASE);frame(1,p.id,p.flags&1,p.flags&2,p.data,p.n,p.ms);}}
+// SP-11: obdState 0 listen-only, 1 may send OBD requests, 2 stopped after transmit errors (until reboot).
+// can1Init(rate,false) leaves listen-only for normal mode: CAN1 then ACKs the car's frames, and a request that is
+// not ACKed is not retried (DAR), so nothing keeps sending to a sleeping ECU. Setting CCE empties the RX FIFO,
+// so a frame or two can be missed at that moment (once per boot, and on the way back after errors).
+static uint8_t obdState=0;static uint32_t can1Rate=500000;
+static void can1Init(uint32_t bitrate,bool listen=true){obdState&=2;can1Rate=bitrate;can1Ready=false;RCC->APB1ENR2|=RCC_APB1ENR2_FDCAN1EN;RCC->CCIPR1&=~RCC_CCIPR1_FDCANSEL;GPIOA->MODER=(GPIOA->MODER&~((3UL<<22)|(3UL<<24)))|(2UL<<22)|(2UL<<24);GPIOA->AFR[1]=(GPIOA->AFR[1]&~((15UL<<12)|(15UL<<16)))|(9UL<<12)|(9UL<<16);FDCAN1->CCCR&=~FDCAN_CCCR_CSR;uint32_t wake=millis()+50;while((FDCAN1->CCCR&FDCAN_CCCR_CSA)&&millis()<wake){}FDCAN1->CCCR|=FDCAN_CCCR_INIT;uint32_t end=millis()+50;while(!(FDCAN1->CCCR&1)&&millis()<end){}if(!(FDCAN1->CCCR&1))return;FDCAN1->CCCR|=FDCAN_CCCR_CCE;FDCAN_CONFIG->CKDIV=0;FDCAN1->NBTP=((16000000UL/(bitrate*16)-1)<<16)|(12UL<<8)|1;FDCAN1->RXGFC=0;uint32_t c=FDCAN1->CCCR&~(FDCAN_CCCR_FDOE|FDCAN_CCCR_BRSE|FDCAN_CCCR_MON);FDCAN1->CCCR=listen?c|FDCAN_CCCR_MON:c|FDCAN_CCCR_DAR;FDCAN1->CCCR&=~FDCAN_CCCR_INIT;can1Ready=true;}
+// Standard id, 8 bytes, into the TX FIFO (message RAM offset 632, three 72-byte elements). Only obdSend calls it.
+static bool obdHwSend(uint32_t id,const uint8_t*d){uint32_t q=FDCAN1->TXFQS;if(obdState!=1||(FDCAN1->CCCR&(FDCAN_CCCR_MON|FDCAN_CCCR_INIT))||(q&(1UL<<21)))return false;unsigned i=(q>>16)&3;volatile uint32_t*m=(volatile uint32_t*)(SRAMCAN_BASE+632+i*72);m[0]=(id&0x7ff)<<18;m[1]=8UL<<16;m[2]=d[0]|d[1]<<8|d[2]<<16|(uint32_t)d[3]<<24;m[3]=d[4]|d[5]<<8|d[6]<<16|(uint32_t)d[7]<<24;FDCAN1->TXBAR=1UL<<i;return true;}
+#include "obd_query.h"
+static Obd obd;
+static void can1Poll(){for(unsigned budget=0;budget<128;++budget){uint32_t tail=__atomic_load_n(&can1Tail,__ATOMIC_RELAXED),head=__atomic_load_n(&can1Head,__ATOMIC_ACQUIRE);if(tail==head)break;Can1Packet p=can1Queue[tail&127];__atomic_store_n(&can1Tail,tail+1,__ATOMIC_RELEASE);frame(1,p.id&0x1fffffff,p.id>>31,(p.id>>30)&1,p.data,p.n,p.ms);if(p.id==0x7e8)obd.rx(p.data,p.n,p.ms);}}
 static void ubxConfig(uint8_t *p,int n){uint8_t f[160]={0xb5,0x62,6,0x8a,(uint8_t)n,0};memcpy(f+6,p,n);uint8_t a=0,b=0;for(int i=2;i<n+6;i++){a+=f[i];b+=a;}f[n+6]=a;f[n+7]=b;i2c_write(bus,f,n+8,0x42);delay(200);}
 static void profile(){
  uint8_t safe[]={0,1,0,0,1,0,0x21,0x30,0xe8,3};ubxConfig(safe,sizeof(safe));
@@ -113,6 +123,17 @@ static void sdWrite(String c){uint32_t sector=strtoul(c.substring(1).c_str(),nul
 static uint32_t sectorCursor; static bool sectorCursorValid=false;
 static bool sectorBounds(uint32_t lba){return sdReady&&!recording&&!sdLogging&&!sdWorking&&(!lba||(sdMounted&&lba>=partStart&&lba-partStart<partSize));}
 static void sdRead(uint32_t lba){sectorCursorValid=sectorBounds(lba);sectorCursor=lba;result=sectorCursorValid?"sector ready":"SD_READ_REJECTED";}
+// SP-11: once a second, the bus is alive if 50 or more CAN1 frames came in (so the bit rate is right). Then
+// leave listen-only and snapshot; snapshot again when the bus comes back or a new SD file starts. TEC 16 or
+// more, error passive or bus-off: back to listen-only until reboot.
+static uint32_t obdCount=0,obdSecond=0;static bool obdAlive=false;
+static void obdPoll(uint32_t now){
+ if(obdState==1&&((FDCAN1->ECR&255)>=16||(FDCAN1->PSR&(FDCAN_PSR_EP|FDCAN_PSR_BO)))){can1Init(can1Rate);obdState=2;}
+ if(now-obdSecond>=1000){obdSecond=now;bool was=obdAlive;obdAlive=canCount[0]-obdCount>=50;obdCount=canCount[0];
+  if(obdAlive&&!obdState&&can1Ready){can1Init(can1Rate,false);obdState=can1Ready;}
+  if(obdAlive&&obdState==1&&(!was||(obd.cur==0xffff&&sdLogging&&obd.file!=logIndex)))obd.start(now,logIndex,was?1:2);}
+ obd.tick(now,obdAlive&&obdState==1);
+}
 // Restart the MCU if the acquisition loop stops for 30 s. A kernel timer instead
 // of a thread: no extra stack in the 128 KiB sketch RAM. sys_reboot is not
 // exported to UNO Q sketches (LLEXT), so reset through SCB->AIRCR.
@@ -139,4 +160,4 @@ void loop(){loopHeartbeat=millis();String c;k_mutex_lock(&lock,K_FOREVER);c=queu
  if(c=="STALLTEST")while(true)k_msleep(1000);
  if(c=="RESETNOW")NVIC_SystemReset();
 #endif
- if(c.length())execute(c);uint32_t now=millis();if(now-imuAt>=10){imuAt+=10;if(now-imuAt>50)imuAt=now;imuPoll();}static uint32_t gp=0;if(now-gp>=10){gp=now;gnssPoll();}can1Poll();can2Poll();static uint32_t st=0;if(now-st>=50){st=now;leds(128|(ltePower==3?2:0)|(hostAt&&now-hostAt<2000?4:0)|(gnssAt&&now-gnssAt<1000&&((nav[20]>=3&&(nav[21]&1))||((now/500)&1))?16:0)|(recording?32:0)|(imuErrors||gnssErrors||sdLogErrors||sdQueueDropped?64:0)|(canAt&&now-canAt<100?1:0));String escaped=result;escaped.replace("\\","\\\\");escaped.replace("\"","\\\"");escaped.replace("\n","\\n");escaped.replace("\r","\\r");char h[4000];snprintf(h,sizeof(h),"{\"mcu_ms\":%lu,\"seq\":%lu,\"imu_address\":%u,\"imu_errors\":%lu,\"imu_irq\":%lu,\"gnss_errors\":%lu,\"dropped\":%lu,\"can1_ready\":%d,\"can2_mode\":%u,\"can_counts\":[%lu,%lu],\"can_overflow\":[%lu,%lu],\"sd_ready\":%d,\"sd_mounted\":%d,\"sd_logging\":%d,\"sd_file\":%lu,\"sd_bytes\":%lu,\"sd_errors\":%lu,\"sd_queue_dropped\":%lu,\"sd_blocks\":%lu,\"sd_alloc_ms\":%lu,\"sd_queue_max\":%lu,\"completed\":%lu,\"result\":\"%s\"",(unsigned long)millis(),(unsigned long)seq,imuAddr,(unsigned long)imuErrors,(unsigned long)irqRise,(unsigned long)gnssErrors,(unsigned long)dropped,can1Ready,can2Mode,(unsigned long)canCount[0],(unsigned long)canCount[1],(unsigned long)canOverflow[0],(unsigned long)canOverflow[1],sdReady,sdMounted,sdLogging,(unsigned long)logIndex,(unsigned long)logBytes,(unsigned long)sdLogErrors,(unsigned long)sdQueueDropped,(unsigned long)sdBlocks,(unsigned long)sdAllocMs,(unsigned long)sdQueueMax,(unsigned long)completed,escaped.c_str());String s=h;char lt[96];snprintf(lt,sizeof(lt),",\"lte_power\":%lu,\"lte_overflows\":%lu}",(unsigned long)ltePower,(unsigned long)lteOver);s+=lt;k_mutex_lock(&lock,K_FOREVER);state=s;k_mutex_unlock(&lock);}delay(1);}
+ if(c.length())execute(c);uint32_t now=millis();if(now-imuAt>=10){imuAt+=10;if(now-imuAt>50)imuAt=now;imuPoll();}static uint32_t gp=0;if(now-gp>=10){gp=now;gnssPoll();}can1Poll();obdPoll(now);can2Poll();static uint32_t st=0;if(now-st>=50){st=now;leds(128|(ltePower==3?2:0)|(hostAt&&now-hostAt<2000?4:0)|(gnssAt&&now-gnssAt<1000&&((nav[20]>=3&&(nav[21]&1))||((now/500)&1))?16:0)|(recording?32:0)|(imuErrors||gnssErrors||sdLogErrors||sdQueueDropped?64:0)|(canAt&&now-canAt<100?1:0));String escaped=result;escaped.replace("\\","\\\\");escaped.replace("\"","\\\"");escaped.replace("\n","\\n");escaped.replace("\r","\\r");char h[4000];snprintf(h,sizeof(h),"{\"mcu_ms\":%lu,\"seq\":%lu,\"imu_address\":%u,\"imu_errors\":%lu,\"imu_irq\":%lu,\"gnss_errors\":%lu,\"dropped\":%lu,\"can1_ready\":%d,\"can2_mode\":%u,\"can_counts\":[%lu,%lu],\"can_overflow\":[%lu,%lu],\"sd_ready\":%d,\"sd_mounted\":%d,\"sd_logging\":%d,\"sd_file\":%lu,\"sd_bytes\":%lu,\"sd_errors\":%lu,\"sd_queue_dropped\":%lu,\"sd_blocks\":%lu,\"sd_alloc_ms\":%lu,\"sd_queue_max\":%lu,\"completed\":%lu,\"result\":\"%s\"",(unsigned long)millis(),(unsigned long)seq,imuAddr,(unsigned long)imuErrors,(unsigned long)irqRise,(unsigned long)gnssErrors,(unsigned long)dropped,can1Ready,can2Mode,(unsigned long)canCount[0],(unsigned long)canCount[1],(unsigned long)canOverflow[0],(unsigned long)canOverflow[1],sdReady,sdMounted,sdLogging,(unsigned long)logIndex,(unsigned long)logBytes,(unsigned long)sdLogErrors,(unsigned long)sdQueueDropped,(unsigned long)sdBlocks,(unsigned long)sdAllocMs,(unsigned long)sdQueueMax,(unsigned long)completed,escaped.c_str());String s=h;char lt[160];snprintf(lt,sizeof(lt),",\"lte_power\":%lu,\"lte_overflows\":%lu,\"obd\":[%u,%lu,%lu,%lu]}",(unsigned long)ltePower,(unsigned long)lteOver,obdState,(unsigned long)obdSent,(unsigned long)obdRejected,(unsigned long)obdSnapshots);s+=lt;k_mutex_lock(&lock,K_FOREVER);state=s;k_mutex_unlock(&lock);}delay(1);}
