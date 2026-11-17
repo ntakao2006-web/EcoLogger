@@ -57,6 +57,7 @@
   - ✅ **解消（2026-09-06、NCEC実車）**：`0x7E0`（物理アドレス）でそのまま応答し、`0x7DF`フォールバックは不要だった。パディング`02 01 <PID> 55×5`もそのまま受け付けられた。55分でsent=165,543／resp=165,490／timeout=53（0.032%）／txerr=0、20PIDが応答。`0C`/`0D`/`11`/`49`は実効8.6Hz。レクサスUXと違い**応答ECUは`0x7E8`単独**。油温`5C`は非対応を再確認。詳細は`docs/research/OBD2_SURVEY.md`「NCEC 追補」。
   - **PC側の変換ツール**：`can_obd_extract.py`を新規作成（リポジトリ直下、標準ライブラリのみ）。2-4-2形式のキャプチャCSVからOBD2 mode 01肯定応答だけを拾い、SAE標準式で物理値へ直してPIDごとの時系列CSV（`t_us,value`）を書き出す。出力はそのまま`can_correlate.py --ref`＋`--ref-time-unit us`に食わせられる。デコーダ26PID搭載、否定応答`0x7F`・デコーダ未定義PIDはサマリで可視化。`--list`（含有PID一覧）/`--pid`（抽出PID絞り込み）/`--json`対応。`--selftest`全14項目PASS。
   - **パイプライン全体のE2E検証（実車なしで完了）**：生CAN（`0x4B0`が車速/0.01をBE u16で50Hz搬送）とOBD2応答（`0x7E8`がPID`0D`を10Hz）を**同一時計**で持つ合成キャプチャを作り、`can_obd_extract.py`→`can_correlate.py`を通した結果、**`--time-offset`既定値0のまま**`0x4B0 offset0/width2/big`を`slope=0.01・intercept=0・R²=1.00000`で完全復元。「同一基板なら時刻合わせ不要」という設計の狙いが成立することを実証した。※`0x7E8`自身も上位に並ぶが基準値の出所なので自明な自己一致、`--candidate-id`で絞るか無視してよい。
+- [x] 2-2-2: `can_obd_logger`のPIDテーブルに燃料補正`06`（短期、1s）・`07`（長期、2s）を足す（2026-11-17、ユーザー依頼） ※車両側でエアフローセンサーを点検する話（ncec-roadsterの`maintenance/reliability-plan.md` 3-3b）から。センサーのずれは長期補正の片寄りに出るので、`10`MAFと一緒に取る。NCECは2-0-4のサポートビットマスクで`06`/`07`対応。`can_obd_extract.py`のデコード表には元から入っている（`stft1`/`ltft1`）。`esp32-c3-can-obd-logger`のビルド成功、`can_obd_extract.py --selftest` 15/15 PASS。**基板への書き込みと実車での応答確認はまだ**（次の実車接続で、`ncec_next_session_checklist.md`のH）
 
 ## 2-3: CANデータのログ統合 ※2-2完了後に着手
 - [ ] 2-3-1: デコードした回転数・車速・水温等をSensorLogRecord（CSV保存）・RCPストリーム（getMeta/sコマンド）へ統合する
