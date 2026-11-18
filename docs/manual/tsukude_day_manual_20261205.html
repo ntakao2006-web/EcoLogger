@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>作手当日手順書</title>
+<!-- TS-5-1 当日用A4手順書（2026-11-19 下書き）。ひな形 docs/manual/day_manual_template.html を写して作手用にした。
+     ブラウザで開いて A4・縦・余白「なし」または「最小」で印刷する。下線の空欄は当日までに手で書き込む
+     （ピットのページのアドレス・電話番号はこのファイルに入れず、紙にだけ書く）。
+     ひな形はPCの新しいアプリ・ピットの表紙（SP-3・SP-6）がそろった姿で書いてあるが、作手の時点で本体と自宅のサーバーに
+     入っていないものは書かず、今ある道具（回収アプリ Collect-Video.cmd・ピットのGrafana）で書いた。
+     12/4の通し確認のあとに仕上げる：その日の予定、ピットのライブ表示を使うか（TS-5-2）、本体の更新を入れたか（TS-2-2）。
+     線は tools/setups/courses/tsukude.json、警告のしきい値は tools/setups/vehicles/ncec.json の dash から写した。 -->
+<style>
+  :root { --ink: #1a1a1a; --sub: #555; --line: #999; --accent: #b5453f; --warn: #b5453f; --bg: #fff; --box: #f8f1f0; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ink: #e8e8e8; --sub: #aaa; --line: #666; --accent: #f08a84; --warn: #f08a84; --bg: #161616; --box: #2b2221; } }
+  :root[data-theme="dark"] { --ink: #e8e8e8; --sub: #aaa; --line: #666; --accent: #f08a84; --warn: #f08a84; --bg: #161616; --box: #2b2221; }
+  @page { size: A4 portrait; margin: 9mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 7.9pt/1.4 "Yu Gothic UI", "Meiryo", sans-serif; }
+  .page { max-width: 192mm; margin: 0 auto; padding: 16px; }
+  @media print { .page { padding: 0; } body { background: #fff; color: #000; } }
+  header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid var(--accent); padding-bottom: 2px; margin-bottom: 5px; }
+  h1 { font-size: 13pt; margin: 0; }
+  header span { color: var(--sub); font-size: 7.6pt; }
+  .cols { columns: 2; column-gap: 6mm; }
+  @media (max-width: 640px) { .cols { columns: 1; } header { display: block; } }
+  section { break-inside: avoid; margin-bottom: 5px; }
+  h2 { font-size: 9.4pt; margin: 0 0 2px; padding: 1px 5px; background: var(--accent); color: #fff; border-radius: 2px; }
+  ol, ul { margin: 0; padding-left: 15px; }
+  li { margin: 0 0 1px; }
+  b { color: var(--accent); }
+  .warn { color: var(--warn); font-weight: bold; }
+  .who { color: var(--sub); font-size: 7.6pt; }
+  .fill { display: inline-block; min-width: 34mm; border-bottom: 1px solid var(--line); }
+  .wide { min-width: 62mm; }
+  table { width: 100%; border-collapse: collapse; font-size: 7.9pt; }
+  th, td { border: 1px solid var(--line); padding: 1px 3px; vertical-align: top; text-align: left; }
+  th { background: var(--box); white-space: nowrap; }
+  .box { background: var(--box); padding: 3px 5px; border-radius: 2px; margin: 0 0 2px; }
+  .draft { color: var(--warn); font-size: 7.6pt; }
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+  <h1>オートランド作手 走行会 当日手順書（ロガー・車載画面・回収）</h1>
+  <span>2026-12-05 NCEC ／ <b>タイムは公式の計測が正</b>。ロガーは止まっても走ってよい</span>
+</header>
+<p class="draft">下書き（2026-11-19）。12/4の通し確認のあとに仕上げる：その日の予定、ピットのライブ表示を使うか、本体の更新を入れたか。</p>
+<div class="cols">
+
+<section>
+  <h2>0. 構成と連絡先</h2>
+  <table>
+    <tr><th>もの</th><th>役目</th></tr>
+    <tr><td>ロガー Ver.2（UNO Q）</td><td>走行記録（本体＋シールドのSD）、ピットへLTE送信、前方の映像に計器を焼き込んで本体へ録画</td></tr>
+    <tr><td>車載画面（モニター HD7H）</td><td>水温・油温・回転数、今の周・前の周・ベストとの差、警告</td></tr>
+    <tr><td>Defiの3連メーター</td><td><b>油温・油圧はこちらが正</b>（車載画面の油温は記録とピット用）</td></tr>
+    <tr><td>PC（パドック）</td><td>回収アプリ（デスクトップの「EcoLogger Ver.2」→回収、または <b>Collect-Video.cmd</b>）</td></tr>
+  </table>
+  <div>ピットのページ（使うとき）：<span class="fill wide"></span></div>
+  <div>ロガー担当：<span class="fill"></span> ☎ <span class="fill"></span></div>
+  <div>走行枠：<span class="fill wide"></span></div>
+</section>
+
+<section>
+  <h2>1. 取り付けの確認（出走前・スイッチOFFのまま）</h2>
+  <ol>
+    <li>手元スイッチが<b>OFF</b>なのを確かめてから触る。</li>
+    <li>充電器：<b>高出力の口＝ロガー（ドック）</b>。モニターは別の口。<b>全部挿してから</b>スイッチを入れる。</li>
+    <li>ドックに<b>カメラ・HDMI・電源</b>。<span class="warn">ドックは電源を入れる前につなぐ</span>（動いている途中で差し替えると認識しない）。</li>
+    <li>GNSS・LTEアンテナのコネクタを指で押し込む。シールドのSDが奥まで入っている。</li>
+    <li>カメラの向き、ケーブルが走行の振動で引っ張られないか（手で揺する）。</li>
+  </ol>
+</section>
+
+<section>
+  <h2>2. 電源ON → 確認（毎回・エンジンを掛ける前）</h2>
+  <ol>
+    <li>スイッチを入れる。<b>電源を入れるだけで記録・録画が始まる</b>（止めるボタンは無い）。</li>
+    <li>約1〜2分で車載画面が出る。<b>時刻が進んでいれば</b>本体は動いている。</li>
+    <li>エンジンを掛けると水温・回転数が出る。</li>
+    <li><span class="warn">エンジンを掛けた瞬間に画面が消えたら</span>、ドックが落ちている（記録は続いている）。スイッチを切り、<b>本体が完全に止まるまで待ってから</b>入れ直す（本体のUPSが粘るので、止まるまで2分ほどかかることがある。すぐ入れ直しても直らない）。</li>
+    <li>ピットのページを使うなら、位置・速度が出れば記録とLTEはOK（測位するまで出ない。最初の送信まで約2分）。</li>
+  </ol>
+  <p class="box">録画は、本体の空きが少なくなると<b>回収済みのものから</b>古い順に入れ替わる。<b>1日の最後に必ず回収する</b>（6章）。</p>
+</section>
+
+<section>
+  <h2>3. 線（コントロールライン）の確認</h2>
+  <ul>
+    <li>ロガーの線は<b>設定済み</b>（東側のメインストレート、ストレートをまたぐ構造物の下。コースとピットレーンをまたぐ幅40m。走る向きは<b>時計回り</b>＝ストレートを南へ）。現地で登録し直すことは無い。</li>
+    <li>朝のコースウォークで、公式の計測の線（路面の線・ビーコン）の位置を<b>写真に撮る</b>。ロガーの線は地図から引いた推定で、ずれていても<b>ラップタイムは変わらない</b>（ずれるのは1周目とピットに入った周の区切りだけ）。</li>
+    <li>走り出して数周で、車載画面の<b>周が増え、前の周のタイムが出る</b>こと（1周は約30〜40秒）。出なければ7章。</li>
+    <li>ピットに入った周は、ピットの周として扱われないことがある（ピットレーンとコースが近く、見分けの値が仮のため）。<span class="who">走ったあとに記録で合わせ直す。</span></li>
+  </ul>
+</section>
+
+<section>
+  <h2>4. 枠と枠のあいだ</h2>
+  <ul>
+    <li>走行会なので<b>ラップのリセットは要らない</b>（周の番号が続くだけ。前の周・ベストのタイムは正しい）。</li>
+    <li>枠のあいだ、長く止まるときはスイッチを切ってよい。入れ直せば記録・録画は自動で再開する（ファイルが分かれるだけ）。</li>
+    <li>見るところ：スイッチがON、車載画面の<b>時刻が進み、周が増えている</b>。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>5. 走っている間に見るところ（ドライバー）</h2>
+  <table>
+    <tr><th>車載画面</th><th>油温</th><th>水温</th><th>すること</th></tr>
+    <tr><td>赤い帯と警告音</td><td>120℃以上</td><td>110℃以上</td><td>クーリング走行。下がらなければピットへ</td></tr>
+  </table>
+  <p class="who">値は車の設定（<code>tools/setups/vehicles/ncec.json</code> の dash）。油温の運用の目安は110℃注意／120℃クーリング／130℃ピットイン（ncec-roadster の track/thermal-limits.md）。<b>Defiのメーターが正</b>。</p>
+</section>
+
+<section>
+  <h2>6. 走り終えたら（止める）・回収</h2>
+  <ol>
+    <li>スイッチを切る。記録・録画は電源OFFで閉じる（最後の約1秒が欠けるだけ）。</li>
+    <li><span class="who">（1日の最後・PC）</span>ロガーの<b>電源を完全に切ってから</b>ドックを外し、本体をPCと<b>USBで直結</b>（PCから給電されて起動する）。</li>
+    <li>回収アプリを開き、本体が見えたら<b>「回収する」</b>。結果の「取れたもの／取れなかったもの／次にすること」を読む。</li>
+    <li>シールドのSD：USBを抜いて電源を切り、SDを抜いてPCのカードリーダーへ → もう一度「回収する」。</li>
+    <li>回収しても本体からは消えない。</li>
+  </ol>
+</section>
+
+<section>
+  <h2>7. 困ったとき</h2>
+  <table>
+    <tr><th>症状</th><th>まずやること</th></tr>
+    <tr><td>車載画面が真っ白</td><td>明るさが上がりきっている。メニューを開いていないときの<b>上・下ボタン</b>で下げる</td></tr>
+    <tr><td>車載画面が「信号なし」</td><td>2分待つ（ロガーが自動で出し直す）。だめならHDMIを抜き差し</td></tr>
+    <tr><td>画面が止まった・消えた</td><td><b>走ってよい</b>（記録は続いていることが多い）。ドックか電源が落ちている。枠が終わってからスイッチを切り、本体が完全に止まるまで待って（2分ほど）入れ直す。戻らなければ充電器・ドックの差し込みを確かめる。起きた時刻をロガー担当へ</td></tr>
+    <tr><td>水温・回転数が No data</td><td>エンジンが掛かっているか。OBD2のタップが外れていないか</td></tr>
+    <tr><td>油温が No data</td><td>基板・配線。<b>Defiのメーターで見て走ってよい</b></td></tr>
+    <tr><td>周が増えない・前の周が出ない</td><td>タイムは公式が正。ピットでロガー担当へ（線の位置・向き）</td></tr>
+    <tr><td>ピットのページに出ない</td><td>記録には影響しない。測位待ち・電波。起動から最初の送信まで約2分</td></tr>
+    <tr><td>回収で本体の分が取れない</td><td>結果の「次にすること」。<b>電源が入ったままドック⇔PCを差し替えない</b>（電源を完全に切ってから）</td></tr>
+  </table>
+  <p class="who">それでも分からないとき：<code>docs/manual/ecologger_troubleshooting.html</code>（ロガー担当向け）。</p>
+</section>
+
+</div>
+</div>
+</body>
+</html>

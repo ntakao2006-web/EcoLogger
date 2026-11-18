@@ -62,8 +62,10 @@
 ## `docs/manual/` — 手順書
 
 - `docs/manual/day_manual_template.html`：**当日用A4手順書のひな形**（SP-8-1、2026-11-13）。新しい大会の手順書は、これを写して【 】の所を書き換える
+- `docs/manual/unoq_return_install_202612.md`：**本体が貸し出しから戻ったら開く**。今の形を確かめる・控える・「まとめて入れる」分（EcoCapture・DASH・針の補間・SP-7-8のファーム・コースの設定）を1つずつ入れる・戻す（2026-11-19、TS-2。SP-11は入れない。ファームはSP-11の1つ前の`9b5ec57`のソースで組む）
 - `docs/manual/pit_cover_phone.md`：ピットの表紙をスマホで使う手順（開く・ホーム画面に置く・合言葉をQRで入れる・操作を送る。SP-6-4、2026-11-13。アドレスは書いていない）
 - `docs/manual/ecorun_day_manual_20261024.html`：エコラン大会の当日用A4手順書（取付・記録の確認・コースウォーク・停止・回収・困ったとき）。ブラウザでA4縦に印刷する。回収は`tools/collect_logs/Collect-Logs.cmd`
+- `docs/manual/tsukude_day_manual_20261205.html`：オートランド作手の走行会の当日用A4手順書（TS-5-1、**2026-11-19の下書き**。12/4の通し確認のあとに予定・ピットのライブ表示・本体の更新の有無を入れて仕上げる）。ひな形から作り、まだ入っていない新しいアプリ・ピットの表紙は書いていない
 - `docs/manual/sugo_day_manual_20261108.html`：SUGOの当日用A4手順書（SG-5-1、**10/30の下書き**。11/5に警告の数値などを入れて仕上げる）。Ver.2をSUGO用の設定へ切り替える道具とラップのリセットは`tools/sugo_setup/`（`sugo_setup.py`・`Reset-Laps.cmd`）。PIC v8の電圧（`PressVolt`・`Temp1Volt`・`Temp2Volt`、0x580）を信号に登録する道具も同じ場所の`defi_volt_setup.py`（既定は確かめるだけ、`--apply`で登録）。その電圧からDefiの油温・水温を℃にする（`OilTemp`をTEMP2へ差し替え、`WaterTempDefi`を足す）のは`defi_temp_setup.py`（`--pullup`でDefi内部の抵抗を変える）。セクターのタイム（2026-11-07）を本体（`lap.py`・DASH）と5B（タイム表）へ入れるのは`install_sectors.py`（既定は確かめるだけ、`--apply`で本体、`--server`で5B）
 - `docs/manual/android_circuit_handoff_20261104.md`：予備の車載画面（EcoLoggerアプリの「サーキット」、SG-2-8）を、DASHの油圧の警告・同時表示・1分の点滅・約10秒の警報音に合わせた分の引継ぎ。**PCでやること**（Gradleでのビルドと試験86件、エミュレーターで`circuit_mock.py`の`press=70`などを見る、スマホへの導入、本体への`field.py`）と、DASHと違うところ
 - `docs/manual/rename_local_folder.md`：このPCの作業フォルダー名を`RaceCapture`から`EcoLogger`へ変える手順（SP-9-9。古い名前を通り道として残す、Claudeの記憶を写す、ショートカットを作り直す、戻し方）。**まだ実行していない**
