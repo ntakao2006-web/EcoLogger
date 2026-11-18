@@ -77,6 +77,7 @@
 
 - `docs/research/analysis_export_formats_20261113.md`：解析ソフトへ走行記録を書き出す形式の調査（MoTeC i2の`.ld`、RaceLogicの`.vbo`ほか。SP-5-5、2026-11-13。まだ何も作っていない。形式を決めるのはユーザー）
 - `docs/research/analysis_software_survey_20261114.md`：自作ロガーのデータを使用許諾の問題なく開ける既存の解析ソフトの比べ（2026-11-14。TrackDataAnalysis・Circuit Tools・WinDarab Free・RaceChrono Proほか、動画の同期の道具）。どのソフトもこちらのデータで開く確かめはしていない。この報告のあと解析は自前のアプリ（SP-10）にした。元のメモは`docs/research/analysis_software_survey_20261114_notes/`
+- `docs/research/tsukude_course_20261119.md`：オートランド作手のコースの形とコントロールラインの候補（2026-11-19、TS-3-1）。OpenStreetMap・公式のコース図・国土地理院の航空写真から。時計回り、公式の全長700m。線の位置は推定で、公式の計測の位置かは確かめていない
 - `docs/research/digspice_analysis_study_20261115.md`：デジスパイスの解析ソフトの調べ（SP-10、2026-11-15）。地図の上の機能（減速は点線・物差し・4台のアニメーション・セクター）、GPSから計算するGと旋回半径・摩擦円、コーナーごとの仮想区間という見方、解析アプリとの比べと、地図の上での解析を強くする案6つ。今の版（Ver4.8.0）の説明書で確かめ直した表つき。ドリフト角（iPhoneの姿勢センサーと測位から出す。普通のログには入らない）と採点は7.1。仕様にしたものは`docs/design/analysis_map_features.md`
 - `docs/research/phone_lap_accuracy_20261115.md`：スマホ（測位1Hz）の周のタイムがどれだけ正しいか（SP-7-7、2026-11-15）。数え方は変えない（誤差はスマホの位置のゆっくりしたずれで、エコランの速さで約0.2〜0.3秒）
 - `docs/research/defi_sensor_curves_research.md`：Defiの油圧・温度センサーの電圧特性の調べもの（Defiは公式に非公開。海外フォーラムの実測表・個人サイトのメーター換算・公式のコネクター色を集め、2026-11-03〜04の実測と照合）。油圧は P[kPa]≒250×(V−V0)、温度はβが高温ほど大きい
