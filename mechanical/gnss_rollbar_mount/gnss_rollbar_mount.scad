@@ -4,6 +4,7 @@
 //       Z = 上。ロールバーの頂上が Z=0、中心が Z=-R。
 // 固定：結束バンド3本（アンテナの下を通す2本＋ケーブルを押さえる1本）。
 //       上からもう1本かけたいときは、側壁の溝（top_tie_notch）でアンテナの上を回す。
+//       アンテナはもともと底に付いている両面テープでポケットの底に貼る。
 //       鞍の面に両面テープ（車載用のフォーム、10mm角）を貼るくぼみがあり、仮止めと回り止めに使う。
 // 角R：平面で見た角は、ポケットの内側と本体の外側を同じ中心の円弧にしている（外R＝内R＋壁厚）。
 // 印刷：-Y の端面（ケーブルが出ない側）を下にして立てて印刷する。サポートは基本不要。
@@ -27,7 +28,8 @@ pocket_depth = 3.5;// ポケットの深さ（アンテナを横から囲う高�
 grommet_w = 7.0;   // ケーブル口（ブッシュ）の幅  ※要実測
 grommet_l = 3.0;   // ブッシュが本体端面から出っ張る長さ ※要実測
 cable_d = 2.8;     // RG174の外径（公称2.8）
-cable_z = 3.5;     // ポケット底からケーブル中心までの高さ ※要実測（両面テープ厚込み）
+ant_tape_t = 1.0;  // アンテナの底に最初から貼られている両面テープの厚さ ※要実測
+cable_h = 2.5;     // アンテナの底面からケーブル中心までの高さ ※要実測
 
 /* [結束バンド] */
 tie_w   = 4.8;   // バンド幅（4.8mm幅の一般品。2.5mm幅なら2.5）
@@ -69,6 +71,7 @@ pk_w   = ant_w + 2*ant_clr;
 Lb     = pk_l + 2*wall;                      // 本体の外寸
 Wb     = pk_w + 2*wall;
 r_out  = ant_corner_r + wall;                // 外側の角R（内側と同じ中心）
+cable_z = ant_tape_t + cable_h;             // ポケット底からケーブル中心までの高さ
 z_tt   = z_pf + cable_z;                     // 舌の上面（ケーブルの中心の高さ）
 y_tail_end = Lb/2 + tail_len;
 tw     = tie_w + tie_clr;                    // バンド溝の幅
@@ -166,13 +169,13 @@ module mount() {
 
 // ---- プレビュー用の部品 ----
 module antenna_dummy() {
-    color("#222") translate([0, 0, z_pf + 0.3]) {
+    color("#222") translate([0, 0, z_pf + ant_tape_t]) {
         hull() {
             linear_extrude(height = 4) rr2d(ant_l, ant_w, 5);
             translate([0, 0, ant_h - 1]) linear_extrude(height = 1) rr2d(ant_l - 10, ant_w - 10, 4);
         }
-        translate([0, ant_l/2, cable_z - 0.3]) rotate([-90, 0, 0]) cylinder(d = 6, h = grommet_l);
-        translate([0, ant_l/2, cable_z - 0.3]) rotate([-90, 0, 0]) cylinder(d = cable_d, h = 60);
+        translate([0, ant_l/2, cable_h]) rotate([-90, 0, 0]) cylinder(d = 6, h = grommet_l);
+        translate([0, ant_l/2, cable_h]) rotate([-90, 0, 0]) cylinder(d = cable_d, h = 60);
     }
 }
 module bar_dummy() {
