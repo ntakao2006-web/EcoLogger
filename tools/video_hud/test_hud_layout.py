@@ -103,8 +103,13 @@ class ParseTest(unittest.TestCase):
         self.assertEqual(hud_layout.needed_version(b), 3)
         self.assertEqual(hud_layout.needed_version(hud_layout.parse(
             hud_layout.DEFAULT_INI.read_text(encoding='utf-8').replace('°C', 'C'))), 1)
-        self.assertEqual({it.type for it in a.items} >= {'dial', 'arc', 'map', 'gball', 'bar', 'value'}, True)
+        self.assertEqual({it.type for it in a.items} >= {'dial', 'map', 'gball', 'bar', 'value'}, True)
         self.assertIn('calc.Delta', a.refs)
+        # 足の動き（2026-11-20）：ブレーキとアクセルペダルは同じ形の棒。ペダルは100で満杯
+        bars = {it.ref: it for it in a.items if it.type == 'bar'}
+        pedal, brake = bars[a.refs.index('can_signals.Pedal')], bars[a.refs.index('can_signals.Brake')]
+        self.assertEqual((pedal.max, pedal.dir, brake.max, brake.dir), (100, 'up', 1, 'up'))
+        self.assertEqual((pedal.rect[1], pedal.rect[3]), (brake.rect[1], brake.rect[3]))
         self.assertEqual(hud_layout.estimate(a, FONT)[2], 'ok')
 
     def test_bom_and_crlf(self):
