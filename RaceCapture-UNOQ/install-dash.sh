@@ -7,6 +7,8 @@ SRC=/home/arduino/RaceCapture-UNOQ
 DEST=/opt/logger-v2-racecapture
 install -m 755 "$SRC/ecocapture_dash.py" "$DEST/"
 install -m 644 "$SRC/dash_model.py" "$DEST/"
+# The number font (Oswald, SIL OFL) stays beside the program: ecocapture_dash.py hands it to fontconfig itself.
+install -m 644 "$SRC/Oswald-wght.ttf" "$SRC/OFL-Oswald.txt" "$DEST/"
 # Already there from install.sh (and maybe newer): only the pause helper is used.
 [ -e "$DEST/display_load_control.py" ] || install -m 644 "$SRC/display_load_control.py" "$DEST/"
 install -m 755 "$SRC/dash_switch.sh" "$DEST/"

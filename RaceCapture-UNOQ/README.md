@@ -47,6 +47,7 @@ SUGO 120分耐久向けに、HDMIにはRaceCaptureアプリの代わりに見る
 | ファイル | 役割 |
 |---|---|
 | `ecocapture_dash.py` | 画面（Python＋GTK、Xorg `:2`）。`--demo`で作り物の走行、`--state warn`等で決まった画面（送信の印は`--state sendwait`・`sendoff`）、`--sound warn`で音だけ |
+| `Oswald-wght.ttf`・`OFL-Oswald.txt` | 数字の書体（Oswald、SIL OFL 1.1）とそのライセンス。`ecocapture_dash.py`の隣に置くと、DASHが自分で読み込む（本体のシステムには入れない。無ければDejaVu Sansで出る） |
 | `dash_model.py` | 表示する中身の計算（GTKなし）。試験は`python -m unittest test_dash_model` |
 | `ecocapture-dash.service` | 自動起動。`racecapture-app`・`racecapture-touch`とは同時に動かない |
 | `install-dash.sh` | rootで実行。DASHを入れて、今と次の電源ONからDASHにする |

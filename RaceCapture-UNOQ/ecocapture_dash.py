@@ -40,10 +40,11 @@ from dash_model import DashModel, load_config, rpm_segments, segment_colours, to
 
 CONFIG_PATH = Path.home() / '.config' / 'ecocapture-dash.json'
 LAPREF_PATH = Path.home() / '.cache' / 'ecocapture-dash' / 'lapref.json'
-# The fonts, the first the machine has. Numbers: Bahnschrift (a DIN, on a Windows PC only: what the
-# mock-up was drawn with, for checking there); the UNO Q has DejaVu Sans until a DIN that may be shipped is
-# chosen and put first here. (family, weight, variable-font settings, the same for the thin dashes)
-NUM_FONTS = (('Bahnschrift', 500, 'wdth=88,wght=500', 'wdth=88,wght=300'), ('DejaVu Sans', 700, None, None))
+# The fonts, the first the machine has. Numbers: Oswald (the user's pick on 2026-11-19 from eleven drawn
+# side by side: tight enough to take in at a glance; SIL OFL, OFL-Oswald.txt), which comes with the DASH as
+# Oswald-wght.ttf beside this file and is handed to fontconfig for this program alone (nothing is installed
+# into the system); DejaVu Sans if that fails. (family, weight, variable-font settings, the same for the thin dashes)
+NUM_FONTS = (('Oswald', 500, 'wght=500', 'wght=300'), ('DejaVu Sans', 700, None, None))
 TEXT_FONTS = (('Noto Sans CJK JP', 500), ('Yu Gothic UI', 600), ('DejaVu Sans', 700))
 DESIGN_W, DESIGN_H = 1280.0, 800.0  # the mock-up's canvas (docs/design/dash_mock_simple_20261119.html)
 GREEN, YELLOW, RED, BLUE = '#2fc64c', '#f2c418', '#ec3030', '#3b9dff'
@@ -51,6 +52,7 @@ WHITE, UNIT, GREY, DIM, OFF = '#f2f2f2', '#bdbdbd', '#8a8a8a', '#555555', '#2626
 PLATE_RED = '#e01414'
 SEG = {'g': GREEN, 'y': YELLOW, 'r': RED}
 SEG_DARK = '#3a0606'
+DIGITS = '0123456789'
 SEG_FILL = 0.893  # a segment's width over its pitch (the gap is the rest), as the 30-segment bar had
 WARN_SCALE = {1: 1.0, 2: 0.75, 3: 0.55}  # the warnings in the band, by how many are on (they share its width)
 FLASH_PERIOD_S = 0.5  # bright and dark red twice a second while flashing (under 3 a second: photosensitivity)
@@ -199,18 +201,35 @@ def rgb(colour):
     return tuple(int(colour[k:k + 2], 16) / 255.0 for k in (1, 3, 5))
 
 
+def add_own_fonts():
+    """The font files beside this program, made known to fontconfig for this process only
+    (FcConfigAppFontAddFile). Called before Pango first looks for a font. False when it could not be done:
+    the next font in NUM_FONTS is used."""
+    try:
+        import ctypes
+        import ctypes.util
+        fontconfig = ctypes.CDLL(ctypes.util.find_library('fontconfig') or 'libfontconfig.so.1')
+        fontconfig.FcConfigAppFontAddFile.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        fontconfig.FcConfigAppFontAddFile.restype = ctypes.c_int
+        return all(fontconfig.FcConfigAppFontAddFile(None, str(path).encode())
+                   for path in sorted(Path(__file__).resolve().parent.glob('*.ttf')))
+    except (OSError, AttributeError):
+        return False
+
+
 class Painter:
     """Text for paint(): the number font and the text font picked from what the machine has, sizes in the
     design's pixels (the cairo context is scaled to the screen), positions by the baseline as in the mock-up."""
 
     def __init__(self, Pango, PangoCairo):
         self.Pango, self.PangoCairo = Pango, PangoCairo
+        add_own_fonts()
         have = {family.get_name() for family in PangoCairo.FontMap.get_default().list_families()}
         self.num_font = next((font for font in NUM_FONTS if font[0] in have), NUM_FONTS[-1])
         self.text_font = next((font for font in TEXT_FONTS if font[0] in have), TEXT_FONTS[-1])
         self.weights = {300: Pango.Weight.LIGHT, 400: Pango.Weight.NORMAL, 500: Pango.Weight.MEDIUM,
                         600: Pango.Weight.SEMIBOLD, 700: Pango.Weight.BOLD}
-        self.fonts = {}
+        self.fonts, self.cell, self.char = {}, {}, {}
         self.tabular = Pango.AttrList()
         self.tabular.insert(Pango.attr_font_features_new('tnum=1'))
 
@@ -240,21 +259,45 @@ class Painter:
         layout.set_text(text, -1)
         return layout
 
+    def cells(self, ctx, text, px, light):
+        """[(character, its place's width, its own width)] when the number font's digits differ in width
+        (Oswald: 1 is narrower, and the font has no equal-width digits of its own), else None. Every digit
+        then gets the widest digit's place and stands in its middle, so a running time does not shake."""
+        key = (round(px, 1), light)
+        if key not in self.cell:
+            widths = [self.layout(ctx, digit, px, False, light).get_size()[0] / self.Pango.SCALE for digit in DIGITS]
+            self.cell[key] = max(widths) if max(widths) - min(widths) > 0.02 * px else None
+        if self.cell[key] is None or not any(ch in DIGITS for ch in text):
+            return None
+        out = []
+        for ch in text:
+            if (ch,) + key not in self.char:
+                self.char[(ch,) + key] = self.layout(ctx, ch, px, False, light).get_size()[0] / self.Pango.SCALE
+            own = self.char[(ch,) + key]
+            out.append((ch, self.cell[key] if ch in DIGITS else own, own))
+        return out
+
     def width(self, ctx, text, px, jp=False, light=False):
+        cells = None if jp else self.cells(ctx, text, px, light)
+        if cells:
+            return sum(place for _ch, place, _own in cells)
         return self.layout(ctx, text, px, jp, light).get_size()[0] / self.Pango.SCALE
 
     def text(self, ctx, x, y, px, text, colour, anchor='start', jp=False, light=False, fit=None):
         """Draws text with its baseline at y and its start / middle / end at x; fit: no wider than this
         (the size comes down, for a font wider than the one the layout was drawn with). Returns the width."""
-        layout = self.layout(ctx, text, px, jp, light)
-        width = layout.get_size()[0] / self.Pango.SCALE
+        width = self.width(ctx, text, px, jp, light)
         if fit and width > fit:
-            layout = self.layout(ctx, text, px * fit / width, jp, light)
-            width = layout.get_size()[0] / self.Pango.SCALE
+            px *= fit / width
+            width = self.width(ctx, text, px, jp, light)
         ctx.set_source_rgb(*rgb(colour))
-        ctx.move_to(x - {'start': 0.0, 'middle': width / 2, 'end': width}[anchor],
-                    y - layout.get_baseline() / self.Pango.SCALE)
-        self.PangoCairo.show_layout(ctx, layout)
+        x -= {'start': 0.0, 'middle': width / 2, 'end': width}[anchor]
+        cells = None if jp else self.cells(ctx, text, px, light)
+        for ch, place, own in cells or ((text, width, width),):
+            layout = self.layout(ctx, ch, px, jp, light)
+            ctx.move_to(x + (place - own) / 2, y - layout.get_baseline() / self.Pango.SCALE)
+            self.PangoCairo.show_layout(ctx, layout)
+            x += place
         return width
 
     def num(self, ctx, x, y, px, text, colour, anchor='start', fit=None):

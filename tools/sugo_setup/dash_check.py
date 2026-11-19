@@ -30,8 +30,8 @@ SRC = REPO / 'RaceCapture-UNOQ'
 sys.path.insert(0, str(REPO / 'tools' / 'collect_logs'))
 
 WORK = '/tmp/ecocapture-dash-check'
-CHECK_FILES = ['ecocapture_dash.py', 'dash_model.py', 'test_dash_model.py', 'display_load_control.py']
-INSTALL_FILES = ['ecocapture_dash.py', 'dash_model.py', 'display_load_control.py', 'dash_switch.sh',
+CHECK_FILES = ['ecocapture_dash.py', 'dash_model.py', 'test_dash_model.py', 'display_load_control.py', 'Oswald-wght.ttf']
+INSTALL_FILES = ['ecocapture_dash.py', 'dash_model.py', 'Oswald-wght.ttf', 'OFL-Oswald.txt', 'display_load_control.py', 'dash_switch.sh',
                  'ecocapture-dash.service', 'ecocapture-dash.sudoers', 'install-dash.sh']
 STATES = ['normal', 'start', 'pit', 'pitbox', 'pitlane', 'shift', 'limit', 'warn', 'warnpress', 'warn2', 'warn3', 'lost', 'stale']
 SOUND_DEVICE = 'plughw:CARD=ArduinoImolaHPH,DEV=3'
