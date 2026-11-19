@@ -341,6 +341,12 @@
     - `--snapshot`は画面を取り込まず、絵を直接PNGへ書く（窓もXも要らない。`--flash-dark`で点滅の暗い側）。`--state slower`を足した。前周比の字は差だけにした（見出しの「前周」の横に出るため）
     - 試験34件（WSL。全16場面×3つの大きさ×目盛り40・30を描く試験を足した。cairoの無いPCでは飛ばす）。WSLにUbuntu公式の`python3-gi-cairo`を入れた。画像は`outputs/dash_redesign_20261119/`（`din/`＝PCの代用の書体、`dejavu/`＝いま本体にある書体）
   - [ ] SP-12-2 **本体に載せる数字の書体を決める**：見本はWindowsの書体（Bahnschrift）での代用で、本体へは配れない。配ってよい条件（OFLなど。GPLは不可）のDIN系の書体を選ぶ。落とす前にユーザーに聞く。決まるまでは本体のDejaVu Sansで出る（太く幅広で、数字は自動で縮む）
+    - 2026-11-19 候補を見比べた（ユーザー依頼）。Google Fontsの公式リポジトリ（`github.com/google/fonts`の`ofl/`）から7種類を落とし、本物のDASHの描き方で描いた（`python3 tools/dev/dash_fonts/compare_fonts.py <出す先>`、WSL。画像と数字の幅は`outputs/dash_fonts_20261119/`、一覧は`sheet.png`）。どれもOFL（配ってよい、GPLではない）
+      - 見本（Bahnschrift）にいちばん近い：**Barlow Condensed SemiBold**（数字の幅48、見本は47）、**Barlow Semi Condensed SemiBold**（51）。次がRoboto Condensed 600（50。形はふつうのゴシック寄り）
+      - 外れ：Saira SemiCondensed・Oswaldは数字の幅が桁ごとに違い（等幅の指定も効かない）、動く時間の数字が揺れる。Sofia Sans Semi Condensedは細く間が広い。IBM Plex Sans Condensed・B612は幅が広く、見本の印象から離れる（B612は周のタイムが枠ぎりぎり）
+      - D-DIN（DINにいちばん近い写し、OFL）は配布元（Font Squirrel）から自動では落とせなかった。要るなら手で落とす
+      - DASHの数字は等幅の指定（`tnum`）を付けて描くようにした（書体の既定の数字が桁ごとに幅の違うものでも揺れないように）
+      - **書体のファイルはまだリポジトリにも本体にも入れていない**。決まったら、ファイルと`OFL.txt`を`RaceCapture-UNOQ/`へ置き、`install-dash.sh`で本体の書体の置き場へ入れ、`NUM_FONTS`の先頭に足す
   - [ ] SP-12-3 **本体へ入れる**（**11/16の「まとめて入れる」の了承には含まれない。入れる前にユーザーに聞く**）
     - 入れる前に見る：本体で`python3 -c "import cairo"`が通るか（画角のプレビュー`lens_preview.py`が同じ部品で動いているので、あるはず）。本体の`~/.config/ecocapture-dash.json`に`rpm_segments`が書いてあれば40に直す
     - 入れたあとに見る：実際の画面での字の大きさ（特に速度と時刻）、10回/秒の描き直しの負荷（`dash_check.py`の30秒の負荷）、警告音

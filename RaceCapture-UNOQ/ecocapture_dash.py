@@ -211,6 +211,8 @@ class Painter:
         self.weights = {300: Pango.Weight.LIGHT, 400: Pango.Weight.NORMAL, 500: Pango.Weight.MEDIUM,
                         600: Pango.Weight.SEMIBOLD, 700: Pango.Weight.BOLD}
         self.fonts = {}
+        self.tabular = Pango.AttrList()
+        self.tabular.insert(Pango.attr_font_features_new('tnum=1'))
 
     def font(self, px, jp, light):
         key = (round(px, 1), jp, light)
@@ -233,6 +235,8 @@ class Painter:
     def layout(self, ctx, text, px, jp=False, light=False):
         layout = self.PangoCairo.create_layout(ctx)
         layout.set_font_description(self.font(px, jp, light))
+        if not jp:  # digits all one width (a font whose own digits differ), so a running time does not shake
+            layout.set_attributes(self.tabular)
         layout.set_text(text, -1)
         return layout
 
