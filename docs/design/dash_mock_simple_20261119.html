@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>DASH 見本（引き算版）2026-11-19</title>
+<!--
+  枠・札・分類の色をやめた版。?s=faster|slower|warn|pit|start
+  色がつくのは、上段の回転数バー・ベスト比・警告だけ。
+  2版目：回転数に単位rpm、時刻・経過・周を大きく（7インチで字の高さ約6mm）、ベスト比を小さく（約27mm→約20mm）。
+  上段の回転数バーは今のDASHのまま。書体はこのPCのBahnschriftで代用。
+-->
+<style>
+  html, body { margin: 0; background: #000; }
+  svg { display: block; }
+  text { font-family: "Bahnschrift", "DIN Alternate", sans-serif; font-variation-settings: "wdth" 88, "wght" 500; }
+  text.jp { font-family: "Yu Gothic UI", "Meiryo", sans-serif; font-variation-settings: normal; font-weight: 600; }
+</style>
+</head>
+<body>
+<svg id="s" xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800"></svg>
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('s');
+const el = (n, a = {}, t) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; svg.appendChild(e); return e; };
+const dash = t => t === '– –';
+const num = (x, y, fs, t, o = {}) => el('text', { x, y, 'font-size': dash(t) ? fs * 0.6 : fs, 'text-anchor': o.a || 'start', style: `fill:${dash(t) ? '#555' : (o.c || '#f2f2f2')}` + (dash(t) ? ';font-variation-settings:"wdth" 88,"wght" 300' : '') }, t);
+const jp = (x, y, fs, t, o = {}) => el('text', { x, y, 'font-size': fs, 'text-anchor': o.a || 'start', style: `fill:${o.c || '#8a8a8a'}`, class: 'jp' }, t);
+
+const GREEN = '#2fc64c', YELLOW = '#f2c418', RED = '#ec3030', BLUE = '#3b9dff';
+
+const D = {
+  faster: { rpm: 6400, spd: 120, delta: -0.84, cur: '1:12.3', last: '1:52.34', lastd: '+0.41', best: '1:51.12', lap: 23, sector: 'S2  −0.31' },
+  slower: { rpm: 5200, spd: 96, delta: 1.27, cur: '0:48.6', last: '1:52.34', lastd: '+0.41', best: '1:51.12', lap: 23 },
+  warn:   { rpm: 6400, spd: 120, delta: -0.84, cur: '1:12.3', last: '1:52.34', lastd: '+0.41', best: '1:51.12', lap: 23, warn: ['油温', '122', '°C'] },
+  pit:    { rpm: 2100, spd: 38, pit: 'PIT OUT', cur: '0:24.1', last: 'PIT', best: '1:51.12', lap: 24 },
+  pitover: { rpm: 3400, spd: 66, over: true, pit: 'PIT OUT', cur: '0:24.1', last: 'PIT', best: '1:51.12', lap: 24 },
+  shift:  { rpm: 7600, spd: 148, shiftAll: true, delta: -0.84, cur: '1:12.3', last: '1:52.34', lastd: '+0.41', best: '1:51.12', lap: 23 },
+  start:  { rpm: 900, spd: 0, cur: '– –', last: '– –', best: '– –', lap: 0, wait: true },
+};
+const sc = new URLSearchParams(location.search).get('s') || 'faster';
+const d = D[sc] || D.faster;
+
+// 上段：回転数バーの色の割り振り（緑40%・黄30%・赤30%）と点滅は今のDASHのまま。
+// ?top=now（今の幅・30目盛り）| tight（数字のすき間を詰める）| stack（回転数と速度を2段に重ねる）
+// 既定はstack：回転数と速度を同じ大きさで、バーの中心に対して上下対称に置く。バーが長くなった分、
+// 目盛りを40に増やして1目盛りの幅を今（約25px）に近づけた（2026-11-19 ユーザー）。?n=35 などで数を変えられる
+const topMode = new URLSearchParams(location.search).get('top') || 'stack';
+const N = topMode === 'stack' ? Number(new URLSearchParams(location.search).get('n') || 40) : 30;
+const barEnd = topMode === 'stack' ? 1070 : topMode === 'tight' ? 787 : 764;
+const pitch = (barEnd - 12) / (N - 1 + 0.893), segw = pitch * 0.893;
+const lit = Math.round(d.rpm / 7950 * N * 26 / 30);
+for (let i = 0; i < N; i++) {
+  const on = d.shiftAll || i < lit;
+  el('rect', { x: 12 + i * pitch, y: 24, width: segw, height: 88, rx: 4, fill: d.shiftAll ? RED : on ? (i < N * 0.4 ? GREEN : i < N * 0.7 ? YELLOW : RED) : '#262626' });
+}
+if (topMode === 'stack') {
+  num(1196, 61, 48, String(d.rpm), { a: 'end' });
+  num(1203, 61, 22, 'rpm', { c: '#bdbdbd' });
+  // ピットで制限を超えたら、速度が赤い札になる（今のDASHと同じ知らせ）
+  if (d.over) el('rect', { x: 1092, y: 70, width: 164, height: 46, fill: RED });
+  num(1196, 110, 48, String(d.spd), { a: 'end', c: d.over ? '#fff' : '#f2f2f2' });
+  num(1203, 110, 22, 'km/h', { c: d.over ? '#fff' : '#bdbdbd' });
+} else {
+  const dx = topMode === 'tight' ? 26 : 0, sx = topMode === 'tight' ? 11 : 0;
+  num(950 + dx, 98, 78, String(d.rpm), { a: 'end' });
+  num(957 + dx, 98, 28, 'rpm', { c: '#bdbdbd' });
+  num(1172 + sx, 98, 78, String(d.spd), { a: 'end' });
+  num(1179 + sx, 98, 28, 'km/h', { c: '#bdbdbd' });
+}
+
+// 主役：ベスト比（枠なし。数字だけに色）
+const fmt = v => (v < 0 ? '−' : '+') + Math.abs(v).toFixed(2);
+jp(640, 160, 24, 'ベスト比', { a: 'middle' });
+if (d.pit) {
+  num(640, 364, 180, d.pit, { a: 'middle', c: BLUE });
+} else if (d.delta == null) {
+  num(640, 340, 180, '– –', { a: 'middle' });
+} else {
+  num(640, 372, 230, fmt(d.delta), { a: 'middle', c: d.delta < 0 ? GREEN : RED });
+}
+
+// 物差し：真ん中が0、左が速い・右が遅い（±2秒）
+const X0 = 120, X1 = 1160, XC = 640, TY = 412;
+el('rect', { x: X0, y: TY, width: X1 - X0, height: 1, fill: '#444' });
+for (let i = -4; i <= 4; i++) {
+  const x = XC + i * 130, h = i % 2 === 0 ? 16 : 9;
+  el('rect', { x: x - 0.5, y: TY - h / 2, width: 1, height: h, fill: '#555' });
+}
+if (d.delta != null && !d.pit) {
+  const w = Math.min(Math.abs(d.delta), 2) / 2 * 520;
+  el('rect', { x: d.delta < 0 ? XC - w : XC, y: TY - 7, width: w, height: 14, fill: d.delta < 0 ? GREEN : RED });
+}
+el('rect', { x: XC - 1.5, y: TY - 16, width: 3, height: 32, fill: '#f2f2f2' });
+if (d.sector) num(1160, 372, 34, d.sector, { a: 'end', c: GREEN });
+
+// 周のタイム：前周・今の周・ベスト（警告のときは、ここが今と同じ赤い帯に替わる）
+if (d.warn) {
+  el('rect', { x: 24, y: 446, width: 1232, height: 146, fill: RED });
+  jp(560, 544, 62, d.warn[0], { a: 'end', c: '#fff' });
+  num(590, 564, 124, d.warn[1], { c: '#fff' });
+  num(782, 564, 54, d.warn[2], { c: '#fff' });
+} else {
+  jp(24, 476, 24, '前周');
+  if (d.lastd) num(88, 476, 28, d.lastd, { c: RED });
+  num(24, 574, 100, d.last, { c: d.last === 'PIT' ? BLUE : '#f2f2f2' });
+  jp(640, 476, 24, '今の周', { a: 'middle' });
+  num(640, 574, 100, d.cur, { a: 'middle' });
+  jp(1256, 476, 24, 'ベスト', { a: 'end' });
+  num(1256, 574, 100, d.best, { a: 'end' });
+}
+
+// 周・経過・時刻：周のタイムと同じ並びで、ひとまわり小さく
+el('rect', { x: 0, y: 608, width: 1280, height: 1, fill: '#262626' });
+jp(24, 650, 24, '周');
+num(24, 724, 68, String(d.lap));
+jp(640, 650, 24, '経過', { a: 'middle' });
+if (d.wait) jp(640, 716, 44, 'スタート待ち', { a: 'middle', c: '#f2f2f2' });
+else num(640, 724, 68, '0:36:15', { a: 'middle' });
+jp(1256, 650, 24, '時刻', { a: 'end' });
+num(1256, 724, 68, '11:16', { a: 'end' });
+
+// ロガーの灯：いちばん下に小さく
+let lx = 1256;
+for (const [name, w] of [['油温・油圧', 100], ['GNSS', 58], ['送信', 44], ['録画 2:10', 96], ['記録', 44]]) {
+  jp(lx, 782, 22, name, { a: 'end' });
+  el('rect', { x: lx - w - 20, y: 766, width: 10, height: 10, fill: GREEN });
+  lx -= w + 52;
+}
+</script>
+</body>
+</html>

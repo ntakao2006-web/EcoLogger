@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>EcoCapture DASH 見た目の見本 その3：コンセプト別（2026-11-19）</title>
+<!--
+コンセプト別の見本（2026-11-19）。本体のソフトは変えていない。出している値はどれも同じ作りものの値。
+  ?v=classic  クラシック：丸い計器と針、クロームの縁、小窓の数字
+  ?v=retro    レトロレーシング：80〜90年代のデジタルメーター（蛍光表示管・7セグメント）
+  ?v=gaming   ゲーミング：レースゲームのHUD（ネオン、斜めの板、光る弧）
+どこかの製品の画面を写したものではない。1280x800 で見る。ギアはいまのDASHに無い値。
+-->
+<style>
+  html, body { margin: 0; background: #000; }
+  body { width: 1280px; height: 800px; overflow: hidden; position: relative; }
+  svg { position: absolute; left: 0; top: 0; display: none; }
+  body.classic #S1, body.retro #S2, body.gaming #S3 { display: block; }
+  svg text { font-family: Bahnschrift, "DIN Alternate", sans-serif; font-variant-numeric: tabular-nums; }
+  .jp { font-family: "Noto Sans JP", "Yu Gothic UI", sans-serif !important; font-weight: 500; }
+</style>
+</head>
+<body>
+<svg id="S1" width="1280" height="800"></svg>
+<svg id="S2" width="1280" height="800"></svg>
+<svg id="S3" width="1280" height="800"></svg>
+<script>
+const v = new URLSearchParams(location.search).get('v');
+document.body.className = ['classic', 'retro', 'gaming'].includes(v) ? v : 'classic';
+const NS = 'http://www.w3.org/2000/svg';
+const el = (p, name, a, text) => { const e = document.createElementNS(NS, name); for (const k in a) e.setAttribute(k, a[k]); if (text != null) e.textContent = text; p.appendChild(e); return e; };
+const RPM = 6400, SPD = 120, DELTA = -0.84;
+const fv = (wd, wg) => `font-variation-settings:"wdth" ${wd},"wght" ${wg}`;
+
+/* ================= クラシック ================= */
+(() => {
+  const s = document.getElementById('S1'), IV = '#efe6d0', ND = '#ff5a1f';
+  const d = el(s, 'defs', {});
+  const ch = el(d, 'linearGradient', { id: 'chrome', x1: 0, y1: 0, x2: 1, y2: 1 });
+  [['0', '#fafafa'], ['.25', '#6a6a6a'], ['.5', '#e6e6e6'], ['.75', '#4a4a4a'], ['1', '#d2d2d2']].forEach(([o, c]) => el(ch, 'stop', { offset: o, 'stop-color': c }));
+  const fc = el(d, 'radialGradient', { id: 'face', cx: .5, cy: .4, r: .7 });
+  el(fc, 'stop', { offset: 0, 'stop-color': '#1c1c1c' }); el(fc, 'stop', { offset: 1, 'stop-color': '#050505' });
+  const A0 = 150, SW = 240;
+  function dial(cx, cy, r, o) {
+    const ang = x => (A0 + SW * (x - o.min) / (o.max - o.min)) * Math.PI / 180;
+    const pt = (rr, x) => [cx + rr * Math.cos(ang(x)), cy + rr * Math.sin(ang(x))];
+    const arc = (rr, a, b) => { const [x1, y1] = pt(rr, a), [x2, y2] = pt(rr, b); return `M${x1},${y1} A${rr},${rr} 0 ${SW * (b - a) / (o.max - o.min) > 180 ? 1 : 0} 1 ${x2},${y2}`; };
+    el(s, 'circle', { cx, cy, r: r + 9, fill: 'url(#face)', stroke: 'url(#chrome)', 'stroke-width': 14 });
+    (o.bands || []).forEach(([a, b, c]) => el(s, 'path', { d: arc(r - 14, a, b), stroke: c, 'stroke-width': 10, fill: 'none' }));
+    for (let x = o.min; x <= o.max + 1e-9; x += o.minor) {
+      const major = Math.abs(x / o.major - Math.round(x / o.major)) < 1e-6, [x1, y1] = pt(r - 8, x), [x2, y2] = pt(r - (major ? 38 : 24), x);
+      el(s, 'line', { x1, y1, x2, y2, stroke: IV, 'stroke-width': major ? 4 : 1.6 });
+      if (major) { const [tx, ty] = pt(r - (r > 200 ? 74 : 62), x); el(s, 'text', { x: tx, y: ty + o.fs * .36, 'font-size': o.fs, 'text-anchor': 'middle', fill: IV, style: fv(100, 500) }, o.label(x)); }
+    }
+    o.texts.forEach(([t, dy, fs, cls]) => el(s, 'text', { x: cx, y: cy + dy, 'font-size': fs, 'text-anchor': 'middle', fill: IV, opacity: .8, class: cls || '', style: fv(100, 400) + ';letter-spacing:.12em' }, t));
+    if (o.after) o.after();
+    const [nx, ny] = pt(r - 30, o.value), [bx, by] = pt(-34, o.value);
+    el(s, 'line', { x1: bx, y1: by, x2: nx, y2: ny, stroke: ND, 'stroke-width': r > 200 ? 8 : 6, 'stroke-linecap': 'round' });
+    el(s, 'circle', { cx, cy, r: r > 200 ? 22 : 16, fill: '#111', stroke: 'url(#chrome)', 'stroke-width': 4 });
+  }
+  const win = (x, y, w, h, label, value, fs) => {
+    el(s, 'text', { x: x + 4, y: y - 12, 'font-size': 21, fill: IV, opacity: .8, class: 'jp', style: 'letter-spacing:.12em' }, label);
+    el(s, 'rect', { x, y, width: w, height: h, rx: 4, fill: '#0c0c0c', stroke: 'url(#chrome)', 'stroke-width': 3 });
+    el(s, 'text', { x: x + w / 2, y: y + h / 2 + fs * .36, 'font-size': fs, 'text-anchor': 'middle', fill: IV, style: fv(100, 500) }, value);
+  };
+  dial(200, 318, 162, { min: 0, max: 240, major: 40, minor: 10, fs: 30, label: x => x, value: SPD, texts: [['km/h', 92, 24]] });
+  dial(1080, 318, 162, { min: -2, max: 2, major: 1, minor: .25, fs: 30, label: x => (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x), value: DELTA,
+    bands: [[-2, 0, '#2a9d48'], [0, 2, '#b3261e']], texts: [['ベスト比', -52, 22, 'jp'], ['秒', 92, 22, 'jp']] });
+  dial(640, 300, 246, { min: 0, max: 8000, major: 1000, minor: 250, fs: 44, label: x => x / 1000, value: RPM, bands: [[7500, 8000, '#c62828']],
+    texts: [['RPM ×1000', -84, 22]], after: () => { el(s, 'rect', { x: 606, y: 384, width: 68, height: 84, rx: 4, fill: '#0c0c0c', stroke: 'url(#chrome)', 'stroke-width': 3 });
+      el(s, 'text', { x: 640, y: 450, 'font-size': 68, 'text-anchor': 'middle', fill: IV, style: fv(100, 600) }, '4'); } });
+  win(60, 622, 330, 88, '今の周', '1:12.3', 70); win(430, 622, 300, 88, '前周', '1:52.34', 62); win(770, 622, 300, 88, 'ベスト', '1:51.12', 62); win(1110, 622, 110, 88, '周', '23', 62);
+  el(s, 'text', { x: 60, y: 770, 'font-size': 22, fill: IV, opacity: .8, class: 'jp', style: 'letter-spacing:.1em' }, '経過　　　　　　　　時刻');
+  el(s, 'text', { x: 124, y: 772, 'font-size': 34, fill: IV, style: fv(100, 500) }, '0:36:15');
+  el(s, 'text', { x: 358, y: 772, 'font-size': 34, fill: IV, style: fv(100, 500) }, '11:16');
+  const gl = el(d, 'filter', { id: 'jglow', x: '-100%', y: '-100%', width: '300%', height: '300%' }); el(gl, 'feGaussianBlur', { stdDeviation: 4, result: 'b' });
+  const mg = el(gl, 'feMerge', {}); el(mg, 'feMergeNode', { in: 'b' }); el(mg, 'feMergeNode', { in: 'SourceGraphic' });
+  ['記録', 'GNSS', '送信', '油温・油圧'].forEach((t, i) => { const x = [760, 880, 1010, 1130][i];
+    el(s, 'circle', { cx: x, cy: 762, r: 9, fill: '#3fe065', stroke: 'url(#chrome)', 'stroke-width': 3, filter: 'url(#jglow)' });
+    el(s, 'text', { x: x + 20, y: 770, 'font-size': 22, fill: IV, opacity: .8, class: 'jp' }, t); });
+})();
+
+/* ================= レトロレーシング ================= */
+(() => {
+  const s = document.getElementById('S2'), VF = '#5dffe1', AM = '#ffb000', RD = '#ff3b30', GR = '#52ff80', FR = '#123a33';
+  el(s, 'rect', { width: 1280, height: 800, fill: '#020504' });
+  const d = el(s, 'defs', {}), f = el(d, 'filter', { id: 'vglow', x: '-10%', y: '-10%', width: '120%', height: '120%' });
+  el(f, 'feGaussianBlur', { stdDeviation: 5, result: 'b' }); const m = el(f, 'feMerge', {}); el(m, 'feMergeNode', { in: 'b' }); el(m, 'feMergeNode', { in: 'SourceGraphic' });
+  const g = el(s, 'g', { filter: 'url(#vglow)' });
+  const SEG = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abfgcd', '-': 'g' };
+  function seg7(x, y, h, str, color) {   // 7セグメントの数字。消えているセグメントも薄く見せる
+    const grp = el(g, 'g', { transform: `translate(${x},${y + h}) skewX(-7) translate(${-x},${-(y + h)})` }), w = h * .5, t = h * .115;
+    const hz = yc => (x0 => `${x0 + t * .55},${yc} ${x0 + t * 1.05},${yc - t / 2} ${x0 + w - t * 1.05},${yc - t / 2} ${x0 + w - t * .55},${yc} ${x0 + w - t * 1.05},${yc + t / 2} ${x0 + t * 1.05},${yc + t / 2}`);
+    const vt = (dx, y1, y2) => (x0 => { const xc = x0 + dx; return `${xc},${y1 + t * .1} ${xc + t / 2},${y1 + t * .6} ${xc + t / 2},${y2 - t * .6} ${xc},${y2 - t * .1} ${xc - t / 2},${y2 - t * .6} ${xc - t / 2},${y1 + t * .6}`; });
+    const P = { a: hz(y + t / 2), g: hz(y + h / 2), d: hz(y + h - t / 2), f: vt(t / 2, y + t / 2, y + h / 2), b: vt(w - t / 2, y + t / 2, y + h / 2), e: vt(t / 2, y + h / 2, y + h - t / 2), c: vt(w - t / 2, y + h / 2, y + h - t / 2) };
+    let cx = x;
+    for (const c of String(str)) {
+      if (c === ':') { [.3, .64].forEach(k => el(grp, 'rect', { x: cx + h * .06, y: y + h * k, width: t, height: t, fill: color })); cx += h * .3; continue; }
+      if (c === '.') { el(grp, 'rect', { x: cx + h * .03, y: y + h - t, width: t, height: t, fill: color }); cx += h * .24; continue; }
+      for (const k in P) el(grp, 'polygon', { points: P[k](cx), fill: color, opacity: (SEG[c] || '').includes(k) ? 1 : .07 });
+      cx += h * .64;
+    }
+  }
+  const cap = (x, y, t, c) => el(g, 'text', { x, y, 'font-size': 22, fill: c || VF, opacity: .85, style: fv(100, 600) + ';letter-spacing:.22em' }, t);
+  const frame = (x, y, w, h) => el(s, 'rect', { x, y, width: w, height: h, rx: 10, fill: 'none', stroke: FR, 'stroke-width': 2 });
+  // 回転数：右上がりに並ぶブロック（0〜8000rpm）
+  const N = 44;
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1), x = 56 + i * 19.6, y = 196 - 150 * Math.pow(t, 1.55), rpm = (i + 1) * 8000 / N, c = rpm > 7500 ? RD : rpm > 6000 ? AM : VF;
+    el(g, 'rect', { x, y, width: 14, height: 56, fill: c, opacity: rpm <= RPM ? 1 : .09, transform: `skewX(-12)`, 'transform-origin': `${x}px ${y + 56}px` });
+  }
+  for (let k = 0; k <= 8; k++) { const i = k * 5.5 - .5, t = Math.max(0, i) / (N - 1); el(g, 'text', { x: 56 + Math.max(0, i) * 19.6 + 4, y: 196 - 150 * Math.pow(t, 1.55) + 84, 'font-size': 24, 'text-anchor': 'middle', fill: k === 8 ? RD : VF, opacity: .85, style: fv(100, 600) }, k); }
+  cap(56, 44, 'RPM ×1000');
+  seg7(950, 46, 150, SPD, VF); cap(1140, 232, 'km/h');
+  frame(30, 292, 220, 240); cap(50, 326, 'GEAR', AM); seg7(96, 346, 164, '4', AM);
+  frame(266, 292, 560, 240); cap(286, 326, 'LAP TIME'); seg7(292, 346, 164, '1:12.3', VF);
+  frame(842, 292, 408, 240); cap(862, 326, 'DIFF BEST', GR); seg7(868, 348, 118, '-0.84', GR);
+  for (let i = 0; i < 20; i++) el(g, 'rect', { x: 866 + i * 18, y: 490, width: 13, height: 20, fill: i < 10 ? GR : RD, opacity: i >= 6 && i < 10 ? 1 : .1 });
+  frame(30, 548, 1220, 150);
+  cap(50, 582, 'LAST'); seg7(50, 602, 72, '1:52.34', VF); cap(130, 582, '+0.41', RD);
+  cap(400, 582, 'BEST'); seg7(400, 602, 72, '1:51.12', VF);
+  cap(760, 582, 'LAP'); seg7(760, 602, 72, '23', VF);
+  cap(930, 582, 'TIME'); seg7(930, 602, 72, '0:36:15', VF);
+  ['REC', 'GNSS', 'LTE', 'OIL'].forEach((t, i) => { el(g, 'rect', { x: 30 + i * 132, y: 728, width: 112, height: 40, rx: 6, fill: 'none', stroke: GR, 'stroke-width': 2 });
+    el(g, 'text', { x: 86 + i * 132, y: 757, 'font-size': 24, 'text-anchor': 'middle', fill: GR, style: fv(100, 600) + ';letter-spacing:.14em' }, t); });
+  cap(1000, 758, 'CLOCK'); seg7(1112, 726, 40, '11:16', VF);
+})();
+
+/* ================= ゲーミング ================= */
+(() => {
+  const s = document.getElementById('S3'), CY = '#27e6ff', MG = '#ff2d86', GN = '#3dff7a';
+  const d = el(s, 'defs', {});
+  const bg = el(d, 'radialGradient', { id: 'gbg', cx: .5, cy: .7, r: .8 }); el(bg, 'stop', { offset: 0, 'stop-color': '#141c44' }); el(bg, 'stop', { offset: 1, 'stop-color': '#030409' });
+  const gr = el(d, 'linearGradient', { id: 'garc', x1: 0, y1: 0, x2: 1, y2: 0 }); [['0', CY], ['.55', '#7b5cff'], ['.85', MG], ['1', '#ff3030']].forEach(([o, c]) => el(gr, 'stop', { offset: o, 'stop-color': c }));
+  const f = el(d, 'filter', { id: 'neon', x: '-20%', y: '-20%', width: '140%', height: '140%' }); el(f, 'feGaussianBlur', { stdDeviation: 8, result: 'b' });
+  const m = el(f, 'feMerge', {}); el(m, 'feMergeNode', { in: 'b' }); el(m, 'feMergeNode', { in: 'b' }); el(m, 'feMergeNode', { in: 'SourceGraphic' });
+  el(s, 'rect', { width: 1280, height: 800, fill: 'url(#gbg)' });
+  for (let i = -8; i < 30; i++) el(s, 'line', { x1: i * 60, y1: 800, x2: i * 60 + 420, y2: 0, stroke: '#ffffff', 'stroke-width': 1, opacity: .035 });
+  const it = (x, y, fs, t, fill, a, glow) => el(s, 'text', { x, y, 'font-size': fs, fill, 'text-anchor': a || 'start', style: fv(96, 700) + ';font-style:italic', transform: `skewX(-10)`, 'transform-origin': `${x}px ${y}px`, filter: glow ? 'url(#neon)' : '' }, t);
+  const cap = (x, y, t, c, a) => el(s, 'text', { x, y, 'font-size': 21, fill: c || CY, 'text-anchor': a || 'start', style: fv(100, 600) + ';letter-spacing:.24em' }, t);
+  const panel = (pts, c) => { el(s, 'polygon', { points: pts, fill: '#0c1330', opacity: .82 }); el(s, 'polygon', { points: pts, fill: 'none', stroke: c, 'stroke-width': 2, filter: 'url(#neon)' }); };
+  panel('30,30 440,30 404,214 30,214', CY); cap(54, 68, 'CURRENT LAP'); it(56, 186, 128, '1:12.3', '#fff');
+  panel('876,30 1250,30 1250,214 840,214', MG); cap(904, 68, 'LAST', MG); it(1224, 112, 62, '1:52.34', '#fff', 'end'); cap(904, 108, '+0.41', '#ff5a5a');
+  cap(880, 152, 'BEST', MG); it(1224, 190, 62, '1:51.12', '#ff8ac0', 'end');
+  cap(640, 52, 'DELTA', GN, 'middle'); it(640, 168, 132, '−0.84', GN, 'middle', true);
+  el(s, 'rect', { x: 500, y: 192, width: 280, height: 6, fill: '#ffffff', opacity: .15 }); el(s, 'rect', { x: 546, y: 190, width: 94, height: 10, fill: GN, filter: 'url(#neon)' }); el(s, 'rect', { x: 638, y: 182, width: 4, height: 26, fill: '#fff' });
+  // 回転数の弧（半円）。区切りのある光る帯
+  const CX = 640, CYY = 640, R = 280, A0 = 172, SW = 196, pt = (r, x) => { const a = (A0 + SW * x / 8000) * Math.PI / 180; return [CX + r * Math.cos(a), CYY + r * Math.sin(a)]; };
+  const arc = (r, a, b) => { const [x1, y1] = pt(r, a), [x2, y2] = pt(r, b); return `M${x1},${y1} A${r},${r} 0 ${SW * (b - a) / 8000 > 180 ? 1 : 0} 1 ${x2},${y2}`; };
+  el(s, 'path', { d: arc(R, 0, 8000), stroke: '#ffffff', opacity: .1, 'stroke-width': 34, fill: 'none', 'stroke-dasharray': '14 5' });
+  el(s, 'path', { d: arc(R, 0, RPM), stroke: 'url(#garc)', 'stroke-width': 34, fill: 'none', 'stroke-dasharray': '14 5', filter: 'url(#neon)' });
+  for (let k = 0; k <= 8; k++) { const [x, y] = pt(R - 46, k * 1000); el(s, 'text', { x, y: y + 10, 'font-size': 28, 'text-anchor': 'middle', fill: k >= 8 ? '#ff5a5a' : '#c9d6ff', style: fv(100, 600) }, k); }
+  it(640, 590, 196, String(SPD), '#fff', 'middle'); cap(640, 632, 'km/h', '#c9d6ff', 'middle'); cap(640, 672, RPM + ' RPM', CY, 'middle');
+  // ギア：六角形
+  const hx = (cx, cy, r) => Array.from({ length: 6 }, (_, i) => `${cx + r * Math.cos(Math.PI / 3 * i)},${cy + r * Math.sin(Math.PI / 3 * i)}`).join(' ');
+  panel(hx(170, 500, 124), MG); cap(170, 428, 'GEAR', MG, 'middle'); it(170, 574, 170, '4', '#fff', 'middle');
+  panel('994,388 1250,388 1250,612 958,612', CY); cap(1016, 430, 'LAP'); it(1226, 440, 52, '23', '#fff', 'end'); cap(1004, 494, 'TIME'); it(1226, 506, 52, '0:36:15', '#fff', 'end');
+  [['S1', '#b455ff', 1], ['S2', GN, 1], ['S3', '#fff', .16], ['S4', '#fff', .16]].forEach(([t, c, o], i) => { const x = 988 + i * 62;
+    el(s, 'polygon', { points: `${x + 10},546 ${x + 60},546 ${x + 50},592 ${x},592`, fill: c, opacity: o }); el(s, 'text', { x: x + 30, y: 577, 'font-size': 22, 'text-anchor': 'middle', fill: o < 1 ? '#8892b8' : '#000', style: fv(100, 700) }, t); });
+  ['REC', 'GNSS', 'LTE', 'OIL'].forEach((t, i) => { el(s, 'circle', { cx: 44 + i * 120, cy: 752, r: 7, fill: GN }); cap(60 + i * 120, 760, t, '#c9d6ff'); });
+  it(1250, 766, 44, '11:16', '#c9d6ff', 'end');
+})();
+</script>
+</body>
+</html>

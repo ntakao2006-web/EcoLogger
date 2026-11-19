@@ -55,7 +55,9 @@ SUGO 120分耐久向けに、HDMIにはRaceCaptureアプリの代わりに見る
 警告の温度・音の出し方は`~/.config/ecocapture-dash.json`で変えられます（`dash_model.py`の`DEFAULTS`。送信の印が「未送信」になるまでの秒数は`send_stale_s`、既定5。例：`{"oil_warn": 120, "water_warn": 110, "sound": {"device": "default", "volume": 0.8}}`）。
 ベスト比は、ベストの周の軌跡を`~/.cache/ecocapture-dash/lapref.json`に残し、DASHを起動し直しても続きから使います。
 
-PCでは、WSLなどGTKのあるLinuxで`GDK_BACKEND=x11 python3 ecocapture_dash.py --state warn --size 1920x1080`のように見た目を確かめられます。
+**2026-11-19に見た目を作り直しました（`task_spec_rebuild_breakdown.md` SP-12。本体へはまだ入れていません）。** 枠と見出しの札をやめ、色は回転数バー・ベスト比・警告だけです。上から、回転数バー（40目盛り）と右端に回転数・速度、中央にベスト比（ピットの周はここに青で「PIT IN／PIT OUT」）、前周・今の周・ベスト（警告のときはこの段が赤い帯）、周・経過・時刻、いちばん下にロガーの灯（記録・録画・送信・GNSS・油温油圧）。ギアは出しません。見本は`docs/design/dash_mock_simple_20261119.html`、画面は`ecocapture_dash.py`の`paint()`が1枚の描画面に描きます（`python3-gi-cairo`が要ります）。
+
+PCでは、WSLで`python3 ecocapture_dash.py --state warn --size 1280x800 --snapshot out.png`のように絵をPNGへ書き出して見た目を確かめられます（窓もXも要りません。`--flash-dark`で点滅の暗い側）。窓で見るなら`GDK_BACKEND=x11 python3 ecocapture_dash.py --state warn --size 1920x1080`。
 
 本体での確かめ方と入れ方は`tools/sugo_setup/dash_check.py`（PCから`ssh unoq`で動かす）：
 

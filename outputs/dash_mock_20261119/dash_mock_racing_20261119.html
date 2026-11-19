@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>EcoCapture DASH「レーシング」の見本：全場面（2026-11-19）</title>
+<!--
+2026-11-19 にユーザーが「レーシングを軸」と決めた見た目の、場面ごとの見本。本体のソフトは変えていない。
+決まり：ギアは出さない／上段のシフトインジケーター（30目盛り・回転数・速度）はいまのDASHと同じ位置・大きさ・色・点滅／主役はベスト比。
+  ?s=faster  ベストより速い          ?s=slower  ベストより遅い
+  ?s=warn    警告1つ（油温）          ?s=warn3   警告3つ（油圧・油温・水温）
+  ?s=pit     ピットアウト・ピットの速度超過   ?s=shift   シフトの回転数（バー全体が赤。実機では点滅）
+  ?s=start   スタート待ち（ベストがまだ無い）  ?s=lost    ロガーの値が来ていない
+文言（PIT OUT・スタート待ち・ロガーの値が来ていません・記録停止 など）は、いまのDASHのまま。1280x800 で見る。書体は Bahnschrift で代用。
+-->
+<style>
+  html, body { margin: 0; background: #000; }
+  body { width: 1280px; height: 800px; overflow: hidden; }
+  svg text { font-family: Bahnschrift, "DIN Alternate", sans-serif; font-variant-numeric: tabular-nums; }
+  .jp { font-family: "Noto Sans JP", "Yu Gothic UI", sans-serif !important; }
+</style>
+</head>
+<body>
+<svg id="S" width="1280" height="800"></svg>
+<script>
+const q = new URLSearchParams(location.search).get('s');
+const ST = ['faster', 'slower', 'warn', 'warn3', 'pit', 'shift', 'start', 'lost'].includes(q) ? q : 'faster';
+const NS = 'http://www.w3.org/2000/svg', s = document.getElementById('S');
+const el = (n, a, t) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; s.appendChild(e); return e; };
+const W = '#f2f2f2', DIM = '#8c8c8c', GN = '#2fd24f', RD = '#e01414', RT = '#ff4640', PU = '#c874ff', YE = '#ffd21f', BL = '#1f64c8', GY = '#5a5a5a';
+const num = (x, y, fs, t, o = {}) => el('text', { x, y: t === '– –' ? y - fs * .12 : y, 'font-size': t === '– –' ? fs * .6 : fs, fill: o.fill || W, 'text-anchor': o.a || 'start', style: `font-variation-settings:"wdth" ${o.wd || 86},"wght" ${t === '– –' ? 400 : o.wg || 600}` }, t);
+const jp = (x, y, fs, t, o = {}) => el('text', { x, y, 'font-size': fs, fill: o.fill || DIM, 'text-anchor': o.a || 'start', class: 'jp', style: `font-weight:${o.w || 500};letter-spacing:.08em` }, t);
+const cell = (x, y, w, h, c, label, dark) => { el('rect', { x, y, width: w, height: h, rx: 10, fill: 'none', stroke: c, 'stroke-width': 3 });
+  const lw = 30 + 23 * label.length; el('path', { d: `M${x},${y + 10} a10,10 0 0 1 10,-10 h${lw - 10} v24 a10,10 0 0 1 -10,10 h${-(lw - 10)} z`, fill: c });
+  jp(x + 14, y + 25, 21, label, { fill: dark ? '#fff' : '#000', w: 700 }); };
+
+// 場面ごとの値
+const D = {
+  faster: { rpm: 6400, lit: 21, spd: 120, now: '1:12.3', delta: '−0.84', dk: 'faster', bar: -0.84, last: '1:52.34', note: '+0.41', nk: RT, best: '1:51.12', lap: '23', el: '0:36:15', sec: [['28.20', 'p'], ['−0.31', 'g'], ['– –', 'o'], ['– –', 'o']] },
+  slower: { rpm: 5200, lit: 14, spd: 96, now: '0:48.7', delta: '+0.62', dk: 'slower', bar: 0.62, last: '1:51.48', note: '−0.86', nk: GN, best: '1:51.12', lap: '24', el: '0:38:07', sec: [['+0.44', 'y'], ['– –', 'o'], ['– –', 'o'], ['– –', 'o']] },
+  pit: { rpm: 3900, lit: 0, spd: 63, over: true, now: '0:21.4', delta: 'PIT OUT', dk: 'pit', bar: null, last: '3:41.07', note: 'PIT', nk: '#5aaeff', best: '1:51.12', lap: '23', el: '0:36:15', sec: [['– –', 'o'], ['– –', 'o'], ['– –', 'o'], ['– –', 'o']] },
+  shift: { rpm: 7760, lit: 30, flash: true, spd: 131, now: '1:12.3', delta: '−0.84', dk: 'faster', bar: -0.84, last: '1:52.34', note: '+0.41', nk: RT, best: '1:51.12', lap: '23', el: '0:36:15', sec: [['28.20', 'p'], ['−0.31', 'g'], ['– –', 'o'], ['– –', 'o']] },
+  start: { rpm: 1100, lit: 0, spd: 0, now: '– –', delta: '– –', dk: 'none', bar: null, last: '– –', note: '', best: '– –', lap: '– –', el: 'スタート待ち', sec: [['– –', 'o'], ['– –', 'o'], ['– –', 'o'], ['– –', 'o']] },
+};
+D.warn = { ...D.faster, warns: [['油温', '122', '℃']] };
+D.warn3 = { ...D.faster, warns: [['油圧', '86', 'kPa'], ['油温', '124', '℃'], ['水温', '112', '℃']] };
+D.lost = { ...D.faster, lost: true };
+const d = D[ST];
+
+// 上段：いまのDASHと同じシフトインジケーター
+for (let i = 0; i < 30; i++) el('rect', { x: 12 + i * 25.07, y: 24, width: 22.4, height: 88, rx: 4, fill: d.flash ? '#ec3030' : i >= d.lit ? '#262626' : i < 12 ? '#2fc64c' : i < 21 ? '#f2c418' : '#ec3030' });
+num(976, 100, 86, d.rpm, { a: 'end', wg: 700, wd: 100 });
+if (d.over) el('rect', { x: 1052, y: 26, width: 216, height: 84, rx: 6, fill: RD });
+num(1160, 100, 86, d.spd, { a: 'end', wg: 700, wd: 100 }); num(1170, 100, 36, 'km/h', { wg: 600, wd: 100 });
+
+// 真ん中：ベスト比の札（速い＝緑、遅い＝赤、ピット＝青、比べる周が無い＝枠だけ）
+const F = { faster: [GN, '#000'], slower: ['#e83a3a', '#fff'], pit: [BL, '#fff'], none: [null, '#6a6a6a'] }[d.dk];
+el('rect', { x: 430, y: 140, width: 420, height: 268, rx: 10, fill: F[0] || 'none', stroke: F[0] ? 'none' : '#3a3a3a', 'stroke-width': 3 });
+if (d.dk !== 'pit') jp(450, 176, 24, 'ベスト比', { fill: F[0] ? F[1] : DIM, w: 700 });
+num(640, d.dk === 'pit' ? 318 : 366, d.dk === 'pit' ? 112 : 168, d.delta, { a: 'middle', fill: F[1], wg: 700, wd: d.dk === 'pit' ? 92 : 84 });
+el('rect', { x: 430, y: 446, width: 420, height: 2, fill: '#444' });
+for (let i = 0; i <= 8; i++) el('rect', { x: 430 + i * 52.5 - 1, y: 438, width: 2, height: 18, fill: '#666' });
+if (d.bar != null) { const w = Math.abs(d.bar) / 2 * 210; el('rect', { x: d.bar < 0 ? 640 - w : 640, y: 438, width: w, height: 18, fill: d.bar < 0 ? GN : '#e83a3a' }); }
+el('rect', { x: 638.5, y: 428, width: 3, height: 38, fill: W });
+cell(430, 492, 420, 184, '#e8e8e8', '今の周'); num(640, 654, 142, d.now, { a: 'middle', fill: d.now === '– –' ? '#6a6a6a' : W });
+
+// 左：前周・ベスト・セクター
+cell(24, 140, 386, 160, YE, '前周'); num(392, 284, 100, d.last, { a: 'end', fill: d.last === '– –' ? '#6a6a6a' : W }); if (d.note) num(392, 180, 38, d.note, { a: 'end', fill: d.nk });
+cell(24, 316, 386, 160, PU, 'ベスト'); num(392, 460, 100, d.best, { a: 'end', fill: d.best === '– –' ? '#6a6a6a' : PU });
+cell(24, 492, 386, 184, GY, 'セクター', true);
+d.sec.forEach(([t, k], i) => { const x = 40 + i * 90, bg = { p: '#a23cf0', g: GN, y: YE, o: null }[k], fg = { p: '#fff', g: '#000', y: '#000', o: '#6a6a6a' }[k];
+  el('rect', { x, y: 542, width: 82, height: 116, rx: 6, fill: bg || 'none', stroke: bg ? 'none' : '#3a3a3a', 'stroke-width': 2 });
+  num(x + 41, 574, 22, 'S' + (i + 1), { a: 'middle', fill: fg, wg: 700 }); num(x + 41, 632, 36, t, { a: 'middle', fill: fg }); });
+
+// 右：周・経過・時刻。警告が出たら、この列が赤い札に替わる（今の周・ベスト比・前周・ベストは読めるまま）
+if (d.warns) {
+  const n = d.warns.length, h = (536 - (n - 1) * 16) / n;
+  d.warns.forEach(([name, val, unit], i) => { const y = 140 + i * (h + 16);
+    el('rect', { x: 870, y, width: 386, height: h, rx: 10, fill: RD });
+    if (n === 1) { jp(1063, y + 170, 96, name, { a: 'middle', fill: '#fff', w: 700 }); num(1063, y + 400, 230, val, { a: 'middle', fill: '#fff', wg: 700, wd: 92 }); num(1063, y + 478, 64, unit, { a: 'middle', fill: '#fff' }); }
+    else { jp(890, y + h / 2 + 18, 46, name, { fill: '#fff', w: 700 }); num(1172, y + h / 2 + 38, 108, val, { a: 'end', fill: '#fff', wg: 700, wd: 88 }); num(1180, y + h / 2 + 38, 30, unit, { fill: '#fff' }); } });
+} else {
+  cell(870, 140, 386, 160, GY, '周', true); num(1238, 284, 110, d.lap, { a: 'end', fill: d.lap === '– –' ? '#6a6a6a' : W });
+  cell(870, 316, 386, 160, GY, '経過', true);
+  if (d.el === 'スタート待ち') jp(1238, 440, 52, d.el, { a: 'end', fill: '#ffd060', w: 700 }); else num(1238, 460, 100, d.el, { a: 'end', wg: 400 });
+  cell(870, 492, 386, 184, GY, '時刻', true); num(1238, 654, 110, '11:16', { a: 'end', wg: 400 });
+}
+
+// 下段：動いている印（正常は小さな緑の灯、止まったものだけ赤い札）
+el('rect', { x: 0, y: 700, width: 1280, height: 2, fill: '#2c2c2c' });
+const lamps = d.lost ? [['記録停止', false], ['GNSS', true], ['送信', true], ['油温・油圧', true]] : [['記録', true], ['GNSS', true], ['送信', true], ['油温・油圧', true]];
+let lx = 24;
+lamps.forEach(([t, ok]) => { const w = 24 + [...t].reduce((a, c) => a + (c.charCodeAt(0) < 128 ? 15 : 24), 0);
+  if (ok) { el('rect', { x: lx, y: 743, width: 12, height: 12, fill: GN }); jp(lx + 21, 756, 22, t); }
+  else { el('rect', { x: lx - 8, y: 728, width: w + 12, height: 42, fill: RD }); el('rect', { x: lx, y: 743, width: 12, height: 12, fill: '#fff' }); jp(lx + 21, 756, 22, t, { fill: '#fff', w: 700 }); }
+  lx += w + 26; });
+
+// ロガーの値が来ていない：画面を覆って知らせる（いまのDASHと同じ）
+if (d.lost) { el('rect', { x: 0, y: 0, width: 1280, height: 700, fill: '#0a0a0a', opacity: .88 });
+  jp(640, 380, 64, 'ロガーの値が来ていません', { a: 'middle', fill: '#f2f2f2', w: 700 }); jp(640, 450, 30, '最後に届いてから 4 秒', { a: 'middle', fill: '#d8d8d8' }); }
+</script>
+</body>
+</html>

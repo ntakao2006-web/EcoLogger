@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>EcoCapture DASH 見た目の見本（2026-11-19）</title>
+<!--
+車載画面 EcoCapture DASH の見た目の見本（2026-11-19）。本体のソフトは変えていない。
+出している値・場面は、いまのDASH（outputs/dash_check_20261108_0647/）と同じ作りものの値。
+  ?v=a  配置はいまのまま、見た目の文法だけ変える
+  ?v=b  配置も変える（ベスト比を主役に、タイムは右の表に）
+  &s=normal | warn | pit
+1280x800 で見る。数字の書体は、このPCにある Bahnschrift（DIN系）で代用している。
+本体へ入れるときは、配ってよい条件の DIN 系の書体を選んで入れる（未選定）。
+-->
+<style>
+  html, body { margin: 0; background: #000; }
+  body { width: 1280px; height: 800px; overflow: hidden; position: relative; color: #f2f2f2; }
+  .n { font-family: Bahnschrift, "DIN Alternate", "Roboto Condensed", sans-serif; font-variation-settings: "wdth" 84, "wght" 600;
+       font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
+  .n.light { font-variation-settings: "wdth" 84, "wght" 400; }
+  .l { font-family: "Noto Sans JP", "Yu Gothic UI", sans-serif; font-weight: 500; color: #8c8c8c; letter-spacing: .08em;
+       font-size: 25px; line-height: 1; white-space: nowrap; }
+  .u { font-size: .36em; margin-left: .12em; color: #b8b8b8; font-variation-settings: "wdth" 90, "wght" 500; }
+  .abs { position: absolute; }
+  .hr { position: absolute; left: 0; width: 1280px; height: 2px; background: #2c2c2c; }
+  .vr { position: absolute; width: 2px; background: #2c2c2c; }
+  .green { color: #35e05c; } .red { color: #ff4640; } .blue { color: #58a6ff; } .amber { color: #ffb400; }
+  /* 回転数のバー：角のない目盛り */
+  .segs { position: absolute; display: flex; gap: 3px; }
+  .segs i { flex: 1; background: #1b1b1b; }
+  .segs i.g { background: #2fd24f; } .segs i.y { background: #f2c418; } .segs i.r { background: #ee3030; }
+  /* 知らせ：反転の札（角なし、文字は左寄せ） */
+  .tag { position: absolute; height: 54px; padding: 0 18px; display: flex; align-items: center; font-size: 44px; }
+  .tag.faster { background: #2fd24f; color: #000; } .tag.pit { background: #2a6fd6; color: #fff; }
+  /* ベスト比の物差し */
+  .meter { position: absolute; height: 40px; }
+  .meter .axis { position: absolute; left: 0; right: 0; top: 19px; height: 2px; background: #444; }
+  .meter .tick { position: absolute; top: 12px; width: 2px; height: 16px; background: #555; }
+  .meter .zero { position: absolute; top: 2px; width: 3px; height: 36px; background: #f2f2f2; left: calc(50% - 1px); }
+  .meter .fill { position: absolute; top: 12px; height: 16px; }
+  /* 動いている印：小さな灯。正常は暗く、止まったものだけ反転 */
+  .tt { display: inline-flex; align-items: center; gap: 9px; margin-left: 30px; font-family: "Noto Sans JP", sans-serif; font-weight: 500;
+        font-size: 23px; color: #8c8c8c; letter-spacing: .06em; }
+  .tt i { width: 12px; height: 12px; background: #2fd24f; }
+  .tt.bad { background: #e01414; color: #fff; padding: 4px 12px; } .tt.bad i { background: #fff; }
+  /* 警告：端から端までの赤い帯（角なし） */
+  .alarm { position: absolute; left: 0; width: 1280px; background: #e01414; display: flex; align-items: center; justify-content: center; gap: 36px; }
+  .alarm .name { font-family: "Noto Sans JP", sans-serif; font-weight: 700; font-size: 84px; color: #fff; letter-spacing: .06em; }
+  .alarm .val { font-size: 172px; color: #fff; }
+  .over { background: #e01414; color: #fff; padding: 4px 12px 0; }
+  .view { display: none; } body.a #A, body.b #B { display: block; }
+  .s-normal, .s-warn, .s-pit { display: none; }
+  body.normal .s-normal, body.warn .s-warn, body.pit .s-pit { display: revert; }
+  body.normal .tag.s-normal, body.pit .tag.s-pit, body.warn .tag.s-warn { display: flex; }
+  body.warn .alarm.s-warn { display: flex; }
+</style>
+</head>
+<body>
+
+<!-- ========== A：配置はいまのまま ========== -->
+<div id="A" class="view">
+  <div class="segs" id="segA" style="left:24px; top:22px; width:756px; height:72px"></div>
+  <div class="abs n" style="right:262px; top:26px; font-size:80px"><span class="rpm"></span><span class="u">rpm</span></div>
+  <div class="abs n s-normal s-warn" style="right:24px; top:26px; font-size:80px"><span class="spd"></span><span class="u">km/h</span></div>
+  <div class="abs n s-pit over" style="right:24px; top:22px; font-size:80px">63<span class="u" style="color:#fff">km/h</span></div>
+  <div class="hr" style="top:116px"></div>
+
+  <div class="abs l" style="left:24px; top:136px">今の周</div>
+  <div class="abs n" style="left:20px; top:176px; font-size:196px"><span class="now"></span></div>
+  <div class="tag n faster s-normal s-warn" style="left:24px; top:376px">S2&nbsp;&nbsp;−0.31</div>
+  <div class="tag n pit s-pit" style="left:24px; top:376px">PIT OUT</div>
+  <div class="vr" style="left:639px; top:116px; height:332px"></div>
+
+  <div class="abs l" style="left:664px; top:136px">ベスト比</div>
+  <div class="abs n green s-normal s-warn" style="left:660px; top:176px; font-size:196px">−0.84<span class="u" style="color:#35e05c">s</span></div>
+  <div class="abs n s-pit" style="left:660px; top:176px; font-size:196px; color:#666">– –</div>
+  <div class="meter" style="left:664px; top:383px; width:592px">
+    <div class="axis"></div><div class="ticks"></div>
+    <div class="fill s-normal s-warn" style="left:29%; width:21%; background:#2fd24f"></div>
+    <div class="zero"></div>
+  </div>
+  <div class="hr" style="top:448px"></div>
+
+  <div class="s-normal s-pit">
+    <div class="abs l" style="left:24px; top:468px">前周<span class="n red s-normal" style="font-size:40px; margin-left:26px; letter-spacing:0">+0.41</span><span class="n blue s-pit" style="font-size:40px; margin-left:26px; letter-spacing:0">PIT</span></div>
+    <div class="abs n light" style="left:22px; top:530px; font-size:108px"><span class="last"></span></div>
+    <div class="vr" style="left:531px; top:448px; height:216px"></div>
+    <div class="abs l" style="left:556px; top:468px">ベスト</div>
+    <div class="abs n light" style="left:554px; top:530px; font-size:108px">1:51.12</div>
+    <div class="vr" style="left:971px; top:448px; height:216px"></div>
+    <div class="abs l" style="left:996px; top:468px">周</div>
+    <div class="abs n light" style="left:994px; top:530px; font-size:108px">23</div>
+  </div>
+  <div class="alarm s-warn" style="top:450px; height:214px"><span class="name">油温</span><span class="n val">122<span class="u" style="color:#fff">℃</span></span></div>
+  <div class="hr" style="top:664px"></div>
+
+  <div class="abs l" style="left:24px; top:712px">経過</div>
+  <div class="abs n light" style="left:98px; top:696px; font-size:62px; color:#d6d6d6">0:36:15</div>
+  <div class="abs l" style="left:330px; top:712px">時刻</div>
+  <div class="abs n light" style="left:404px; top:696px; font-size:62px; color:#d6d6d6">11:16</div>
+  <div class="abs" style="right:24px; top:708px"><span class="tt"><i></i>記録</span><span class="tt"><i></i>GNSS</span><span class="tt"><i></i>送信</span><span class="tt"><i></i>油温・油圧</span></div>
+</div>
+
+<!-- ========== B：ベスト比を主役に、タイムは右の表 ========== -->
+<div id="B" class="view">
+  <div class="segs" id="segB" style="left:24px; top:22px; width:960px; height:60px"></div>
+  <div class="abs n" style="right:24px; top:22px; font-size:66px"><span class="rpm"></span><span class="u">rpm</span></div>
+  <div class="hr" style="top:104px"></div>
+
+  <div class="abs l" style="left:24px; top:124px">ベスト比</div>
+  <div class="abs n green s-normal s-warn" style="left:14px; top:150px; font-size:316px">−0.84<span class="u" style="color:#35e05c; font-size:.28em">s</span></div>
+  <div class="abs n s-pit" style="left:14px; top:150px; font-size:316px; color:#666">– –</div>
+  <div class="meter" style="left:24px; top:478px; width:788px">
+    <div class="axis"></div><div class="ticks"></div>
+    <div class="fill s-normal s-warn" style="left:29%; width:21%; background:#2fd24f"></div>
+    <div class="zero"></div>
+  </div>
+  <div class="tag n faster s-normal" style="left:24px; top:560px">S2&nbsp;&nbsp;−0.31</div>
+  <div class="tag n pit s-pit" style="left:24px; top:560px">PIT OUT</div>
+  <div class="alarm s-warn" style="top:536px; height:128px; width:837px"><span class="name" style="font-size:60px">油温</span><span class="n val" style="font-size:116px">122<span class="u" style="color:#fff">℃</span></span></div>
+  <div class="vr" style="left:836px; top:104px; height:560px"></div>
+
+  <div class="abs l" style="left:862px; top:124px">今の周</div>
+  <div class="abs n" style="right:24px; top:140px; font-size:112px"><span class="now"></span></div>
+  <div class="hr" style="top:262px; left:838px; width:442px"></div>
+  <div class="abs l" style="left:862px; top:282px">前周</div>
+  <div class="abs n red s-normal s-warn" style="left:862px; top:322px; font-size:38px">+0.41</div>
+  <div class="abs n blue s-pit" style="left:862px; top:322px; font-size:38px">PIT</div>
+  <div class="abs n light" style="right:24px; top:292px; font-size:88px"><span class="last"></span></div>
+  <div class="hr" style="top:396px; left:838px; width:442px"></div>
+  <div class="abs l" style="left:862px; top:416px">ベスト</div>
+  <div class="abs n light" style="right:24px; top:426px; font-size:88px">1:51.12</div>
+  <div class="hr" style="top:530px; left:838px; width:442px"></div>
+  <div class="abs l" style="left:862px; top:550px">周</div>
+  <div class="abs n light" style="left:912px; top:572px; font-size:76px">23</div>
+  <div class="vr" style="left:1040px; top:530px; height:134px"></div>
+  <div class="abs n s-normal s-warn" style="right:24px; top:572px; font-size:76px"><span class="spd"></span><span class="u">km/h</span></div>
+  <div class="abs n s-pit over" style="right:24px; top:566px; font-size:76px">63<span class="u" style="color:#fff">km/h</span></div>
+  <div class="hr" style="top:664px"></div>
+
+  <div class="abs l" style="left:24px; top:712px">経過</div>
+  <div class="abs n light" style="left:98px; top:696px; font-size:62px; color:#d6d6d6">0:36:15</div>
+  <div class="abs l" style="left:330px; top:712px">時刻</div>
+  <div class="abs n light" style="left:404px; top:696px; font-size:62px; color:#d6d6d6">11:16</div>
+  <div class="abs" style="right:24px; top:708px"><span class="tt"><i></i>記録</span><span class="tt"><i></i>GNSS</span><span class="tt"><i></i>送信</span><span class="tt"><i></i>油温・油圧</span></div>
+</div>
+
+<script>
+  const q = new URLSearchParams(location.search);
+  const v = q.get('v') === 'b' ? 'b' : 'a';
+  const s = ['normal', 'warn', 'pit'].includes(q.get('s')) ? q.get('s') : 'normal';
+  document.body.className = v + ' ' + s;
+  // いまのDASHの確かめの場面と同じ作りものの値
+  const D = { normal: { rpm: '6400', spd: '120', lit: 21, now: '1:12.3', last: '1:52.34' },
+              warn:   { rpm: '6400', spd: '120', lit: 21, now: '1:12.3', last: '1:52.34' },
+              pit:    { rpm: '3900', spd: '63',  lit: 0,  now: '0:21.4', last: '3:41.07' } }[s];
+  for (const k of ['rpm', 'spd', 'now', 'last']) document.querySelectorAll('.' + k).forEach(e => e.textContent = D[k]);
+  for (const id of ['segA', 'segB']) {           // 30目盛り：緑40%・黄30%・赤30%（いまと同じ）
+    const row = document.getElementById(id);
+    for (let i = 0; i < 30; i++) { const e = document.createElement('i'); if (i < D.lit) e.className = i < 12 ? 'g' : i < 21 ? 'y' : 'r'; row.appendChild(e); }
+  }
+  document.querySelectorAll('.meter .ticks').forEach(t => {   // 物差しの刻み（8等分）
+    for (let i = 0; i <= 8; i++) { const e = document.createElement('div'); e.className = 'tick'; e.style.left = `calc(${i * 12.5}% - 1px)`; t.appendChild(e); }
+  });
+</script>
+</body>
+</html>

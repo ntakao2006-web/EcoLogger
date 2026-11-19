@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>EcoCapture DASH 見た目の見本 その2（2026-11-19）</title>
+<!--
+世の中のダッシュ表示を見て回って分けた3つの型を、自分たちの値で描いた見本（2026-11-19）。本体のソフトは変えていない。
+  ?v=gt3     GT3・フォーミュラ型：色つきの枠のマス目、真ん中に大きなギア、上にシフトランプ
+  ?v=ribbon  帯のタコメーター型：右上がりの回転数の帯（目盛りの数字つき）、斜体の数字
+  ?v=arc     アナログ型：大きな回転数の弧と針、真ん中にギア
+どれも、どこかの製品の画面を写したものではない（型だけを借りて描いた）。1280x800 で見る。
+ギアはいまのDASHに無い（回転数と車速から計算して足す必要がある）。セクターの色分けも見本用の値。
+書体は、このPCにある Bahnschrift（DIN系）で代用している。
+-->
+<style>
+  html, body { margin: 0; background: #000; }
+  body { width: 1280px; height: 800px; overflow: hidden; position: relative; color: #f2f2f2; }
+  .n { font-family: Bahnschrift, "DIN Alternate", sans-serif; font-variation-settings: "wdth" 86, "wght" 600; font-variant-numeric: tabular-nums;
+       line-height: 1; white-space: nowrap; }
+  .n.light { font-variation-settings: "wdth" 86, "wght" 400; }
+  .n.heavy { font-variation-settings: "wdth" 96, "wght" 700; }
+  .l { font-family: "Noto Sans JP", "Yu Gothic UI", sans-serif; font-weight: 500; color: #8c8c8c; letter-spacing: .08em; font-size: 24px; line-height: 1; white-space: nowrap; }
+  .u { font-size: .34em; margin-left: .12em; color: #b8b8b8; font-variation-settings: "wdth" 90, "wght" 500; }
+  .abs { position: absolute; }
+  .hr { position: absolute; left: 0; width: 1280px; height: 2px; background: #2c2c2c; }
+  .green { color: #35e05c; } .red { color: #ff4640; } .purple { color: #c874ff; } .yellow { color: #ffd21f; } .cyan { color: #45d2ff; }
+  .tt { display: inline-flex; align-items: center; gap: 9px; margin-left: 28px; font-family: "Noto Sans JP", sans-serif; font-weight: 500; font-size: 22px; color: #8c8c8c; letter-spacing: .06em; }
+  .tt i { width: 12px; height: 12px; background: #2fd24f; }
+  .view { display: none; } body.gt3 #G, body.ribbon #R, body.arc #C { display: block; }
+  svg { position: absolute; left: 0; top: 0; }
+  svg text { font-family: Bahnschrift, sans-serif; font-variation-settings: "wdth" 86, "wght" 600; fill: #f2f2f2; }
+
+  /* GT3型：色つきの枠。見出しは枠の色の札 */
+  .cell { position: absolute; border: 3px solid var(--c); border-radius: 10px; box-sizing: border-box; }
+  .cell .cl { position: absolute; left: -3px; top: -3px; background: var(--c); color: #000; font: 700 21px "Noto Sans JP", sans-serif; letter-spacing: .06em;
+              padding: 4px 14px 5px; border-radius: 10px 0 10px 0; }
+  .cell .cv { position: absolute; right: 18px; bottom: 12px; }
+  .cell .cn { position: absolute; right: 18px; top: 10px; font-size: 40px; }
+  .leds { position: absolute; display: flex; justify-content: space-between; }
+  .leds i { width: 38px; height: 38px; border-radius: 50%; background: #191919; }
+  .leds i.g { background: #2fe052; box-shadow: 0 0 14px #2fe052; } .leds i.y { background: #ffd21f; box-shadow: 0 0 14px #ffd21f; } .leds i.r { background: #ff3030; box-shadow: 0 0 14px #ff3030; }
+  .sec { position: absolute; top: 46px; width: 92px; height: 116px; border-radius: 6px; box-sizing: border-box; text-align: center; }
+  .sec b { display: block; font: 700 22px Bahnschrift, sans-serif; margin-top: 12px; }
+  .sec span { display: block; font-size: 38px; margin-top: 10px; }
+  .sec.p { background: #a23cf0; color: #fff; } .sec.g { background: #2fd24f; color: #000; } .sec.o { border: 2px solid #3a3a3a; color: #6a6a6a; }
+
+  /* 帯のタコメーター型：数字を斜体に */
+  .ob { display: inline-block; transform: skewX(-9deg); transform-origin: left bottom; }
+</style>
+</head>
+<body>
+
+<!-- ========== GT3・フォーミュラ型 ========== -->
+<div id="G" class="view">
+  <div class="abs n" style="left:24px; top:20px; font-size:40px"><span class="l" style="font-size:22px; margin-right:10px">周</span>23</div>
+  <div class="leds" id="ledG" style="left:210px; top:18px; width:860px"></div>
+  <div class="abs n light" style="right:24px; top:20px; font-size:40px; color:#d0d0d0">11:16</div>
+
+  <div class="cell" style="--c:#45d2ff; left:24px; top:84px; width:422px; height:178px"><span class="cl">速度</span><span class="n cv" style="font-size:132px">120<span class="u">km/h</span></span></div>
+  <div class="cell" style="--c:#e8e8e8; left:24px; top:278px; width:422px; height:190px"><span class="cl">今の周</span><span class="n cv" style="font-size:138px; bottom:8px">1:12.3</span></div>
+  <div class="cell" style="--c:#5a5a5a; left:24px; top:484px; width:422px; height:182px"><span class="cl" style="color:#fff">セクター</span>
+    <div class="sec p n" style="left:18px"><b>S1</b><span>28.20</span></div>
+    <div class="sec g n" style="left:118px"><b>S2</b><span>−0.31</span></div>
+    <div class="sec o n" style="left:218px"><b>S3</b><span>– –</span></div>
+    <div class="sec o n" style="left:318px"><b>S4</b><span>– –</span></div>
+  </div>
+
+  <div class="abs n heavy" style="left:470px; top:84px; width:340px; height:104px; background:#2fd24f; color:#000; border-radius:10px; font-size:92px; text-align:center; line-height:112px">−0.84</div>
+  <div class="abs n heavy" style="left:470px; top:186px; width:340px; text-align:center; font-size:440px">4</div>
+  <div class="abs n" style="left:470px; top:604px; width:340px; text-align:center; font-size:62px">6400<span class="u">rpm</span></div>
+
+  <div class="cell" style="--c:#ffd21f; left:834px; top:84px; width:422px; height:178px"><span class="cl">前周</span><span class="n cn red">+0.41</span><span class="n cv" style="font-size:118px">1:52.34</span></div>
+  <div class="cell" style="--c:#c874ff; left:834px; top:278px; width:422px; height:190px"><span class="cl">ベスト</span><span class="n cv purple" style="font-size:118px">1:51.12</span></div>
+  <div class="cell" style="--c:#5a5a5a; left:834px; top:484px; width:422px; height:182px"><span class="cl" style="color:#fff">経過</span><span class="n cv light" style="font-size:104px">0:36:15</span></div>
+
+  <div class="hr" style="top:690px"></div>
+  <div class="abs" style="left:-4px; top:724px"><span class="tt"><i></i>記録</span><span class="tt"><i></i>GNSS</span><span class="tt"><i></i>送信</span><span class="tt"><i></i>油温・油圧</span></div>
+  <div class="abs l" style="right:24px; top:728px; color:#5c5c5c">EcoLogger</div>
+</div>
+
+<!-- ========== 帯のタコメーター型 ========== -->
+<div id="R" class="view">
+  <svg id="svgR" width="1280" height="290"></svg>
+  <div class="abs n" style="left:24px; top:24px; font-size:76px"><span class="ob">6400</span><span class="u">rpm</span></div>
+
+  <div class="abs" style="left:44px; top:318px; width:236px; height:316px; border:4px solid #f2f2f2; transform:skewX(-9deg); box-sizing:border-box"></div>
+  <div class="abs n heavy" style="left:34px; top:330px; width:236px; text-align:center; font-size:316px"><span class="ob" style="transform-origin:center">4</span></div>
+
+  <div class="abs l" style="left:340px; top:318px">今の周</div>
+  <div class="abs n heavy" style="left:336px; top:350px; font-size:176px"><span class="ob">1:12.3</span></div>
+  <div class="abs l" style="left:340px; top:544px">ベスト比</div>
+  <div class="abs n heavy green" style="left:470px; top:526px; font-size:112px"><span class="ob">−0.84</span></div>
+  <div class="abs" style="left:762px; top:566px; width:196px; height:54px; background:#2fd24f; transform:skewX(-9deg)"></div>
+  <div class="abs n heavy" style="left:762px; top:572px; width:196px; text-align:center; font-size:38px; color:#000"><span class="ob" style="transform-origin:center">S2 −0.31</span></div>
+
+  <div class="abs n heavy" style="right:28px; top:318px; font-size:176px"><span class="ob">120</span><span class="u" style="font-size:.22em">km/h</span></div>
+  <div class="abs l" style="left:980px; top:520px">前周</div>
+  <div class="abs n red" style="left:980px; top:550px; font-size:30px">+0.41</div>
+  <div class="abs n light" style="right:28px; top:506px; font-size:64px">1:52.34</div>
+  <div class="abs l" style="left:980px; top:604px">ベスト</div>
+  <div class="abs n light" style="right:28px; top:590px; font-size:64px">1:51.12</div>
+
+  <div class="hr" style="top:664px"></div>
+  <div class="abs l" style="left:24px; top:714px">周</div>
+  <div class="abs n light" style="left:64px; top:698px; font-size:60px; color:#d6d6d6">23</div>
+  <div class="abs l" style="left:164px; top:714px">経過</div>
+  <div class="abs n light" style="left:238px; top:698px; font-size:60px; color:#d6d6d6">0:36:15</div>
+  <div class="abs l" style="left:466px; top:714px">時刻</div>
+  <div class="abs n light" style="left:540px; top:698px; font-size:60px; color:#d6d6d6">11:16</div>
+  <div class="abs" style="right:24px; top:710px"><span class="tt"><i></i>記録</span><span class="tt"><i></i>GNSS</span><span class="tt"><i></i>送信</span><span class="tt"><i></i>油温・油圧</span></div>
+</div>
+
+<!-- ========== アナログ型 ========== -->
+<div id="C" class="view">
+  <svg id="svgC" width="1280" height="700"></svg>
+  <div class="abs n heavy" style="left:490px; top:280px; width:300px; text-align:center; font-size:290px">4</div>
+  <div class="abs n" style="left:490px; top:238px; width:300px; text-align:center; font-size:44px; color:#d6d6d6">6400<span class="u">rpm</span></div>
+  <div class="abs n" style="left:490px; top:560px; width:300px; text-align:center; font-size:92px">120<span class="u">km/h</span></div>
+
+  <div class="abs l" style="left:24px; top:60px">今の周</div>
+  <div class="abs n heavy" style="left:22px; top:92px; font-size:122px">1:12.3</div>
+  <div class="abs l" style="left:24px; top:262px">ベスト比</div>
+  <div class="abs n heavy green" style="left:22px; top:300px; font-size:112px">−0.84</div>
+  <div class="abs" style="left:24px; top:440px; width:286px; height:2px; background:#444"></div>
+  <div class="abs" style="left:108px; top:433px; width:59px; height:16px; background:#2fd24f"></div>
+  <div class="abs" style="left:166px; top:423px; width:3px; height:36px; background:#f2f2f2"></div>
+  <div class="abs n" style="left:24px; top:494px; height:50px; padding:0 16px; background:#2fd24f; color:#000; font-size:40px; line-height:54px">S2&nbsp;&nbsp;−0.31</div>
+
+  <div class="abs l" style="right:24px; top:60px">前周</div>
+  <div class="abs n light" style="right:24px; top:92px; font-size:92px">1:52.34</div>
+  <div class="abs n red" style="right:24px; top:190px; font-size:40px">+0.41</div>
+  <div class="abs l" style="right:24px; top:262px">ベスト</div>
+  <div class="abs n light" style="right:24px; top:294px; font-size:92px">1:51.12</div>
+  <div class="abs l" style="right:24px; top:440px">周</div>
+  <div class="abs n light" style="right:24px; top:472px; font-size:92px">23</div>
+
+  <div class="hr" style="top:690px"></div>
+  <div class="abs l" style="left:24px; top:730px">経過</div>
+  <div class="abs n light" style="left:98px; top:716px; font-size:56px; color:#d6d6d6">0:36:15</div>
+  <div class="abs l" style="left:320px; top:730px">時刻</div>
+  <div class="abs n light" style="left:394px; top:716px; font-size:56px; color:#d6d6d6">11:16</div>
+  <div class="abs" style="right:24px; top:724px"><span class="tt"><i></i>記録</span><span class="tt"><i></i>GNSS</span><span class="tt"><i></i>送信</span><span class="tt"><i></i>油温・油圧</span></div>
+</div>
+
+<script>
+  const v = new URLSearchParams(location.search).get('v');
+  document.body.className = ['gt3', 'ribbon', 'arc'].includes(v) ? v : 'gt3';
+  const RPM = 6400, MAX = 8000, SHIFT = 7500;
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (parent, name, attrs, text) => { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; parent.appendChild(e); return e; };
+
+  // GT3型：シフトランプ15個（緑6・黄5・赤4）
+  const ledG = document.getElementById('ledG');
+  for (let i = 0; i < 15; i++) { const e = document.createElement('i'); if (i < 11) e.className = i < 6 ? 'g' : i < 11 ? 'y' : 'r'; ledG.appendChild(e); }
+
+  // 帯のタコメーター：右上がりに背が伸びる斜めの棒48本（0〜8000rpm）。下に×1000の数字
+  const svgR = document.getElementById('svgR');
+  const N = 48, X0 = 330, STEP = 18.6, W = 13, BASE = 232;
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1), h = 40 + 168 * Math.pow(t, 0.75), x = X0 + i * STEP, s = h * 0.16;
+    const rpm = (i + 1) * MAX / N, lit = rpm <= RPM, redzone = rpm > SHIFT;
+    const fill = lit ? (redzone ? '#ff3030' : rpm > 6000 ? '#ffb400' : '#f2f2f2') : (redzone ? '#4a0c0c' : '#1e1e1e');
+    el(svgR, 'polygon', { points: `${x + s},${BASE - h} ${x + W + s},${BASE - h} ${x + W},${BASE} ${x},${BASE}`, fill });
+  }
+  for (let k = 0; k <= 8; k++) el(svgR, 'text', { x: X0 + (k * 6 - 0.5) * STEP + (k ? 0 : 10), y: BASE + 40, 'font-size': 32, 'text-anchor': 'middle', fill: k >= 8 ? '#ff3030' : '#8c8c8c' }, k);
+  el(svgR, 'rect', { x: 0, y: BASE + 54, width: 1280, height: 2, fill: '#2c2c2c' });
+
+  // アナログ型：240度の弧（左下から右下へ）。目盛り・数字・赤い帯・針
+  const svgC = document.getElementById('svgC');
+  const CX = 640, CY = 400, R = 290, A0 = 150, SW = 240;
+  const pt = (r, rpm) => { const a = (A0 + SW * rpm / MAX) * Math.PI / 180; return [CX + r * Math.cos(a), CY + r * Math.sin(a)]; };
+  const arc = (r, from, to) => { const [x1, y1] = pt(r, from), [x2, y2] = pt(r, to); const large = SW * (to - from) / MAX > 180 ? 1 : 0; return `M${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2}`; };
+  const defs = el(svgC, 'defs', {});
+  const f = el(defs, 'filter', { id: 'glow', x: '-30%', y: '-30%', width: '160%', height: '160%' });
+  el(f, 'feGaussianBlur', { stdDeviation: 9, result: 'b' });
+  const m = el(f, 'feMerge', {}); el(m, 'feMergeNode', { in: 'b' }); el(m, 'feMergeNode', { in: 'SourceGraphic' });
+  el(svgC, 'path', { d: arc(R, 0, MAX), stroke: '#1c1c1c', 'stroke-width': 30, fill: 'none' });
+  el(svgC, 'path', { d: arc(R, SHIFT, MAX), stroke: '#5a1010', 'stroke-width': 30, fill: 'none' });
+  el(svgC, 'path', { d: arc(R, 0, RPM), stroke: '#45d2ff', 'stroke-width': 30, fill: 'none', filter: 'url(#glow)', opacity: .55 });
+  el(svgC, 'path', { d: arc(R, 0, RPM), stroke: '#eaf8ff', 'stroke-width': 22, fill: 'none' });
+  for (let r = 0; r <= MAX; r += 500) {
+    const major = r % 1000 === 0, [x1, y1] = pt(R - 20, r), [x2, y2] = pt(R - (major ? 46 : 34), r);
+    el(svgC, 'line', { x1, y1, x2, y2, stroke: r >= SHIFT ? '#ff3030' : '#9a9a9a', 'stroke-width': major ? 4 : 2 });
+    if (major) { const [tx, ty] = pt(R - 76, r); el(svgC, 'text', { x: tx, y: ty + 13, 'font-size': 40, 'text-anchor': 'middle', fill: r >= 8000 ? '#ff3030' : '#d6d6d6' }, r / 1000); }
+  }
+  const [n1x, n1y] = pt(R - 52, RPM), [n2x, n2y] = pt(R + 22, RPM);
+  el(svgC, 'line', { x1: n1x, y1: n1y, x2: n2x, y2: n2y, stroke: '#ff5a1f', 'stroke-width': 7 });
+</script>
+</body>
+</html>

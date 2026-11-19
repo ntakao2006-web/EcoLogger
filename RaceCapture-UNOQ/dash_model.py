@@ -81,8 +81,10 @@ DEFAULTS = {
     'rpm_bar_start': 4000,
     'shift_rpm': 7500,
     # segments in the bar, coloured green 40%, yellow 30%, red 30% (segment_colours). The user's call on
-    # 2026-11-07 from 10/20/30 drawn side by side: 30 (117 rpm a segment; the full bar at 7384, close to the flashing)
-    'rpm_segments': 30,
+    # 2026-11-07 from 10/20/30 drawn side by side: 30 (117 rpm a segment; the full bar at 7384, close to the
+    # flashing). 2026-11-19: 40 (16-12-12; 88 rpm a segment, the full bar at 7413): the bar grew 40% longer
+    # when the engine speed and the speed were stacked at its end, and 40 keeps a segment as wide as it was
+    'rpm_segments': 40,
     'limit_rpm': 7950,
     # The speed in the pit lane (km/h): SUGO's pit lane limit is 60
     'pit_speed_limit_kmh': 60,
@@ -415,7 +417,7 @@ class DashModel:
         if pit:
             note, note_kind = 'PIT', 'pit'
         elif diff is not None:
-            note, note_kind = f'前周比 {fmt_signed(diff)}s', 'slower' if diff > 0.005 else 'faster' if diff < -0.005 else 'even'
+            note, note_kind = fmt_signed(diff), 'slower' if diff > 0.005 else 'faster' if diff < -0.005 else 'even'
         else:
             note, note_kind = '', None
         utc = parse_utc(sample.get('gnss_utc')) or parse_utc(sample.get('host_utc'))

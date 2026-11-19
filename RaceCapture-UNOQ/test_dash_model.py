@@ -70,12 +70,16 @@ class RpmSpeedTests(unittest.TestCase):
         self.assertEqual(rpm_bar(c, 8000), (10, 'limit'))
         self.assertEqual(rpm_bar(config(rpm_segments=10, shift_rpm=7200, limit_rpm=7800), 7300), (10, 'shift'))
 
-    def test_default_bar_is_thirty_segments(self):
+    def test_default_bar_is_forty_segments(self):
         c = config()
         self.assertEqual(rpm_bar(c, 4000), (1, None))
+        self.assertEqual(rpm_bar(c, 7412), (39, None))
+        self.assertEqual(rpm_bar(c, 7413), (40, None))     # 87.5 rpm a segment
+        self.assertEqual(rpm_bar(c, 7500), (40, 'shift'))
+        self.assertEqual(segment_colours(40), ('g',) * 16 + ('y',) * 12 + ('r',) * 12)
+        c = config(rpm_segments=30)                        # the bar as it was until 2026-11-19
         self.assertEqual(rpm_bar(c, 7382), (29, None))
         self.assertEqual(rpm_bar(c, 7384), (30, None))     # 116.7 rpm a segment
-        self.assertEqual(rpm_bar(c, 7500), (30, 'shift'))
 
     def test_finer_bar(self):
         c = config(rpm_segments=20)
@@ -92,7 +96,7 @@ class RpmSpeedTests(unittest.TestCase):
     def test_state_has_rpm_and_speed(self):
         m = DashModel(config())
         s, _ = m.update(frame(rpm=7712.4, speed=127.6), 0.0)
-        self.assertEqual((s['rpm'], s['rpm_lit'], s['rpm_mode'], s['speed'], s['speed_kind']), ('7712', 30, 'shift', '128', None))
+        self.assertEqual((s['rpm'], s['rpm_lit'], s['rpm_mode'], s['speed'], s['speed_kind']), ('7712', 40, 'shift', '128', None))
         s, _ = m.update(frame(connected=False), 10.0)
         self.assertEqual((s['rpm'], s['rpm_lit'], s['rpm_mode'], s['speed']), ('--', 0, None, '--'))
 
@@ -228,7 +232,7 @@ class ModelTests(unittest.TestCase):
         s, _ = m.update(frame(lap), 0.0)
         self.assertEqual((s['lap_now'], s['last'], s['best'], s['lap_no'], s['elapsed'], s['clock']),
                          ('1:12.3', '1:52.34', '1:51.12', '23', '0:36:15', '11:16'))
-        self.assertEqual((s['last_note'], s['last_note_kind']), ('前周比 +0.41s', 'slower'))
+        self.assertEqual((s['last_note'], s['last_note_kind']), ('+0.41', 'slower'))
         self.assertEqual((s['notice'], s['warn']), ('', False))
         self.assertTrue(s['rec'] and s['gnss'] and s['oil_sensor'] and not s['stale'])
         self.assertEqual((s['video'], s['video_kind']), ('', None))  # an EcoCapture without the video summary
@@ -292,18 +296,43 @@ class ModelTests(unittest.TestCase):
 
     def test_the_screen_draws_the_sending_light(self):
         import ecocapture_dash as dash  # no GTK needed up to here
-        css = dash.css_for(1920, 1080).decode()
-        for kind in ('ok', 'warn', 'off'):
-            self.assertIn('.' + dash.SEND_CLASS[kind] + ' ', css)
         kinds = {name: dash.fixed_state(config(), name)['send_kind']
                  for name in ('normal', 'start', 'pit', 'warn3', 'lost', 'stale', 'sendwait', 'sendoff')}
         self.assertEqual(kinds, {'normal': 'ok', 'start': 'ok', 'pit': 'ok', 'warn3': 'ok', 'lost': 'ok',
                                  'stale': None, 'sendwait': 'warn', 'sendoff': 'off'})
         s, _ = DashModel(config()).update(dash.DemoFeed(0.0).frame(30.0), 30.0)
         self.assertEqual((s['send'], s['send_kind']), ('送信中', 'ok'))
-        source = Path(dash.__file__).read_text(encoding='utf-8')  # show_state puts the model's text and kind on the chip
-        self.assertIn("self.chip_send.set_text(s.get('send'", source)
-        self.assertIn("SEND_CLASS.get(s.get('send_kind')", source)
+        source = Path(dash.__file__).read_text(encoding='utf-8')  # paint puts the model's text and kind on the light
+        self.assertIn("s.get('send', '送信 --')", source)
+        self.assertIn("{'ok': 'ok', 'warn': 'warn'}.get(s.get('send_kind'), 'off')", source)
+
+    def test_every_fixed_screen_paints(self):
+        """paint() draws each fixed screen at three sizes without an error and leaves something on it
+        (needs cairo and Pango: skipped on a PC without them, run in WSL and on the UNO Q)."""
+        try:
+            import cairo
+            import gi
+            gi.require_version('Pango', '1.0')
+            gi.require_version('PangoCairo', '1.0')
+            from gi.repository import Pango, PangoCairo
+        except (ImportError, ValueError):
+            self.skipTest('no cairo / Pango here')
+        import ecocapture_dash as dash
+        painter = dash.Painter(Pango, PangoCairo)
+        for segments in (40, 30):
+            c = config(rpm_segments=segments)
+            colours = segment_colours(segments)
+            for name in ('normal', 'slower', 'start', 'pit', 'pitbox', 'pitlane', 'shift', 'limit', 'warn', 'warnpress',
+                         'warn2', 'warn3', 'lost', 'stale', 'sendwait', 'sendoff'):
+                state = dash.fixed_state(c, name)
+                for w, h in ((1280, 800), (1920, 1080), (1024, 768)):
+                    surface = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
+                    ctx = cairo.Context(surface)
+                    k = min(h / dash.DESIGN_H, w / dash.DESIGN_W)
+                    ctx.scale(k, k)
+                    for now in (0.0, 0.3):  # both halves of the flashing
+                        dash.paint(ctx, painter, state, w / k, colours, now)
+                    self.assertTrue(any(bytes(surface.get_data())), (name, w, h))
 
     def test_waiting_pit_lost_and_stale(self):
         m = DashModel(config())

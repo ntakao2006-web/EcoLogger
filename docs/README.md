@@ -57,6 +57,7 @@
 - `docs/design/enclosure_ecorun_20261024.md`：エコラン大会用の3Dプリント筐体の設計材料（Ver.2・Ver.1の基板寸法と縁の部品位置、STEPの場所、要件、未確定事項）。耐衝撃の考え方は`docs/design/case_shock_design.md`
 - `docs/design/er12_mpp_soc_harness_bom.md`：EV二輪のMPP充電器からSOCを読む測定用ハーネスの部品表（秋月版・千石版）と結線表（ER-12）
 - `docs/design/unoq_software_inventory.md`：本体のソフト（`RaceCapture-UNOQ/`・`EcoCapture-Web/`）を「いま動いているもの／公式アプリ用／通話／試験／古い候補」に分けた一覧（2026-11-13、SP-2-4）。公式アプリを外すとき（SP-7-3）の材料。本体で有効かどうかは「要確認」のまま
+- `docs/design/dash_mock_simple_20261119.html`：**車載画面DASHの見た目の見本**（SP-12、2026-11-19にユーザーが決めた形）。ブラウザで開き、`?s=faster`・`slower`・`warn`・`pit`・`pitover`・`shift`・`start`で場面を切り替える。DASHのソース（`RaceCapture-UNOQ/ecocapture_dash.py`の`paint()`）の座標はこれに合わせてある。途中の案と画像は`outputs/dash_mock_20261119/`、作り込んだあとの画像は`outputs/dash_redesign_20261119/`
 - `docs/design/logger_v2_channel_and_sensor_spec.md`：Ver.2への入力・出力チャンネルの仕様（回路担当の宿題6・7・8。外部CANのチャンネルごとの用途、油温・油圧センサーの選定、追加で記録したい車体の信号）。外部CANのID割り当て表の正は`sensorhub_generic_spec.md`
 - `docs/design/logger_v2_gnss_i2c_design.md`：Ver.2のGNSSをI²C（DDC）にしてIMUとバスを分け合う設計メモ（回路担当の宿題1・2）
 

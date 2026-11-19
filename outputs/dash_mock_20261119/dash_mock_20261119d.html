@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>EcoCapture DASH 見た目の見本 その4：ギアなし・ベスト比が主役（2026-11-19）</title>
+<!--
+2026-11-19 のユーザーの判断を入れた見本。本体のソフトは変えていない。
+  ・ギア（シフトポジション）は出さない（NCに信号が無く、計算値は発進の半クラなどを映せないため）
+  ・上段のシフトインジケーター（30目盛りの回転数バー・回転数・速度）は、位置・大きさ・色をいまのDASHと同じにする
+  ・主役はベスト比
+  ?v=race   レーシング：色つきの枠のマス目、真ん中にベスト比の札
+  ?v=meter  メーター：ベスト比を針のメーターにする（0が真上、左が速い・右が遅い）
+  ?v=retro  レトロレーシング：7セグメントの数字
+1280x800 で見る。書体は Bahnschrift（DIN系）で代用。
+-->
+<style>
+  html, body { margin: 0; background: #000; }
+  body { width: 1280px; height: 800px; overflow: hidden; position: relative; }
+  svg { position: absolute; left: 0; top: 0; display: none; }
+  body.race #S1, body.meter #S2, body.retro #S3 { display: block; }
+  svg text { font-family: Bahnschrift, "DIN Alternate", sans-serif; font-variant-numeric: tabular-nums; }
+  .jp { font-family: "Noto Sans JP", "Yu Gothic UI", sans-serif !important; }
+</style>
+</head>
+<body>
+<svg id="S1" width="1280" height="800"></svg><svg id="S2" width="1280" height="800"></svg><svg id="S3" width="1280" height="800"></svg>
+<script>
+const v = new URLSearchParams(location.search).get('v');
+document.body.className = ['race', 'meter', 'retro'].includes(v) ? v : 'race';
+const NS = 'http://www.w3.org/2000/svg';
+const el = (p, n, a, t) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; p.appendChild(e); return e; };
+const W = '#f2f2f2', DIM = '#8c8c8c', GN = '#2fd24f', RD = '#ff4640', PU = '#c874ff', YE = '#ffd21f';
+// 数字（DIN系）と日本語の見出し
+const num = (s, x, y, fs, t, o = {}) => el(s, 'text', { x, y, 'font-size': fs, fill: o.fill || W, 'text-anchor': o.a || 'start', style: `font-variation-settings:"wdth" ${o.wd || 86},"wght" ${o.wg || 600}` }, t);
+const jp = (s, x, y, fs, t, o = {}) => el(s, 'text', { x, y, 'font-size': fs, fill: o.fill || DIM, 'text-anchor': o.a || 'start', class: 'jp', style: `font-weight:${o.w || 500};letter-spacing:.08em` }, t);
+
+// 上段：いまのDASHと同じシフトインジケーター（30目盛り：緑12・黄9・赤9。位置と大きさもいまのまま）
+function topBand(s) {
+  for (let i = 0; i < 30; i++) el(s, 'rect', { x: 12 + i * 25.07, y: 24, width: 22.4, height: 88, rx: 4, fill: i >= 21 ? '#262626' : i < 12 ? '#2fc64c' : '#f2c418' });
+  num(s, 976, 100, 86, '6400', { a: 'end', wg: 700, wd: 100 });
+  num(s, 1160, 100, 86, '120', { a: 'end', wg: 700, wd: 100 });
+  num(s, 1170, 100, 36, 'km/h', { wg: 600, wd: 100 });
+}
+function lamps(s, y) {
+  ['記録', 'GNSS', '送信', '油温・油圧'].forEach((t, i) => { const x = [24, 124, 236, 346][i]; el(s, 'rect', { x, y: y - 13, width: 12, height: 12, fill: GN }); jp(s, x + 21, y, 22, t); });
+}
+
+/* ========== レーシング（ギアなし） ========== */
+(() => {
+  const s = document.getElementById('S1'); topBand(s);
+  const cell = (x, y, w, h, c, label, dark) => { el(s, 'rect', { x, y, width: w, height: h, rx: 10, fill: 'none', stroke: c, 'stroke-width': 3 });
+    const lw = 30 + 23 * label.length; el(s, 'path', { d: `M${x},${y + 10} a10,10 0 0 1 10,-10 h${lw - 10} v24 a10,10 0 0 1 -10,10 h${-(lw - 10)} z`, fill: c });
+    jp(s, x + 14, y + 25, 21, label, { fill: dark ? '#fff' : '#000', w: 700 }); };
+  // 真ん中：ベスト比の札（速いときは緑、遅いときは赤になる）
+  el(s, 'rect', { x: 430, y: 140, width: 420, height: 268, rx: 10, fill: GN });
+  jp(s, 450, 176, 24, 'ベスト比', { fill: '#000', w: 700 });
+  num(s, 640, 366, 168, '−0.84', { a: 'middle', fill: '#000', wg: 700, wd: 84 });
+  el(s, 'rect', { x: 430, y: 446, width: 420, height: 2, fill: '#444' });
+  for (let i = 0; i <= 8; i++) el(s, 'rect', { x: 430 + i * 52.5 - 1, y: 438, width: 2, height: 18, fill: '#666' });
+  el(s, 'rect', { x: 552, y: 438, width: 88, height: 18, fill: GN }); el(s, 'rect', { x: 638.5, y: 428, width: 3, height: 38, fill: W });
+  cell(430, 492, 420, 184, '#e8e8e8', '今の周'); num(s, 640, 654, 142, '1:12.3', { a: 'middle', wg: 600 });
+  cell(24, 140, 386, 160, YE, '前周'); num(s, 392, 284, 100, '1:52.34', { a: 'end' }); num(s, 392, 180, 38, '+0.41', { a: 'end', fill: RD });
+  cell(24, 316, 386, 160, PU, 'ベスト'); num(s, 392, 460, 100, '1:51.12', { a: 'end', fill: PU });
+  cell(24, 492, 386, 184, '#5a5a5a', 'セクター', true);
+  [['S1', '28.20', '#a23cf0', '#fff'], ['S2', '−0.31', GN, '#000'], ['S3', '– –', null, '#6a6a6a'], ['S4', '– –', null, '#6a6a6a']].forEach(([n, t, bg, fg], i) => { const x = 40 + i * 90;
+    el(s, 'rect', { x, y: 542, width: 82, height: 116, rx: 6, fill: bg || 'none', stroke: bg ? 'none' : '#3a3a3a', 'stroke-width': 2 });
+    num(s, x + 41, 574, 22, n, { a: 'middle', fill: fg, wg: 700 }); num(s, x + 41, 632, 36, t, { a: 'middle', fill: fg }); });
+  cell(870, 140, 386, 160, '#5a5a5a', '周', true); num(s, 1238, 284, 110, '23', { a: 'end' });
+  cell(870, 316, 386, 160, '#5a5a5a', '経過', true); num(s, 1238, 460, 100, '0:36:15', { a: 'end', wg: 400 });
+  cell(870, 492, 386, 184, '#5a5a5a', '時刻', true); num(s, 1238, 654, 110, '11:16', { a: 'end', wg: 400 });
+  el(s, 'rect', { x: 0, y: 700, width: 1280, height: 2, fill: '#2c2c2c' }); lamps(s, 756);
+})();
+
+/* ========== メーター（ベスト比を針で） ========== */
+(() => {
+  const s = document.getElementById('S2'); topBand(s);
+  const CX = 640, CY = 590, R = 330, ang = x => (270 + x * 36) * Math.PI / 180, pt = (r, x) => [CX + r * Math.cos(ang(x)), CY + r * Math.sin(ang(x))];
+  const arc = (r, a, b) => { const [x1, y1] = pt(r, a), [x2, y2] = pt(r, b); return `M${x1},${y1} A${r},${r} 0 0 1 ${x2},${y2}`; };
+  el(s, 'path', { d: arc(R, -2, 0), stroke: '#17512a', 'stroke-width': 28, fill: 'none' });
+  el(s, 'path', { d: arc(R, 0, 2), stroke: '#5c1717', 'stroke-width': 28, fill: 'none' });
+  el(s, 'path', { d: arc(R, -0.84, 0), stroke: GN, 'stroke-width': 28, fill: 'none' });
+  for (let x = -2; x <= 2.001; x += .25) { const major = Math.abs(x - Math.round(x)) < 1e-6, [x1, y1] = pt(R - 20, x), [x2, y2] = pt(R - (major ? 52 : 36), x);
+    el(s, 'line', { x1, y1, x2, y2, stroke: major ? W : '#8a8a8a', 'stroke-width': major ? 4 : 2 });
+    if (major) { const [tx, ty] = pt(R - 84, x); num(s, tx, ty + 14, 40, (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x), { a: 'middle', fill: '#d6d6d6', wd: 100 }); } }
+  const [n1x, n1y] = pt(R - 62, -0.84), [n2x, n2y] = pt(R + 22, -0.84);
+  el(s, 'line', { x1: n1x, y1: n1y, x2: n2x, y2: n2y, stroke: W, 'stroke-width': 9, 'stroke-linecap': 'round' });
+  jp(s, 330, 530, 22, '速い', { fill: GN, a: 'middle' }); jp(s, 950, 530, 22, '遅い', { fill: RD, a: 'middle' });
+  jp(s, 640, 418, 24, 'ベスト比', { a: 'middle' });
+  num(s, 640, 568, 150, '−0.84', { a: 'middle', fill: GN, wg: 700, wd: 88 });
+  jp(s, 640, 612, 22, '今の周', { a: 'middle' }); num(s, 640, 690, 84, '1:12.3', { a: 'middle' });
+  jp(s, 24, 176, 24, '前周'); num(s, 22, 262, 88, '1:52.34', { wg: 400 }); num(s, 24, 304, 36, '+0.41', { fill: RD });
+  jp(s, 24, 384, 24, 'ベスト'); num(s, 22, 470, 88, '1:51.12', { wg: 400, fill: PU });
+  jp(s, 24, 548, 24, 'セクター');
+  [['S1', '#a23cf0', '#fff'], ['S2', GN, '#000'], ['S3', null, '#6a6a6a'], ['S4', null, '#6a6a6a']].forEach(([n, bg, fg], i) => { const x = 24 + i * 70;
+    el(s, 'rect', { x, y: 566, width: 62, height: 48, fill: bg || 'none', stroke: bg ? 'none' : '#3a3a3a', 'stroke-width': 2 }); num(s, x + 31, 600, 26, n, { a: 'middle', fill: fg, wg: 700 }); });
+  jp(s, 1256, 176, 24, '周', { a: 'end' }); num(s, 1258, 262, 88, '23', { a: 'end', wg: 400 });
+  jp(s, 1256, 384, 24, '経過', { a: 'end' }); num(s, 1258, 470, 88, '0:36:15', { a: 'end', wg: 400 });
+  jp(s, 1256, 548, 24, '時刻', { a: 'end' }); num(s, 1258, 626, 78, '11:16', { a: 'end', wg: 400 });
+  el(s, 'rect', { x: 0, y: 714, width: 1280, height: 2, fill: '#2c2c2c' }); lamps(s, 766);
+})();
+
+/* ========== レトロレーシング（ギアなし） ========== */
+(() => {
+  const s = document.getElementById('S3'), VF = '#5dffe1', G2 = '#52ff80', FR = '#123a33'; topBand(s);
+  const d = el(s, 'defs', {}), f = el(d, 'filter', { id: 'vg', x: '-10%', y: '-10%', width: '120%', height: '120%' });
+  el(f, 'feGaussianBlur', { stdDeviation: 5, result: 'b' }); const m = el(f, 'feMerge', {}); el(m, 'feMergeNode', { in: 'b' }); el(m, 'feMergeNode', { in: 'SourceGraphic' });
+  const g = el(s, 'g', { filter: 'url(#vg)' });
+  const SEG = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abfgcd', '-': 'g' };
+  function seg7(x, y, h, str, color) {
+    const grp = el(g, 'g', { transform: `translate(${x},${y + h}) skewX(-7) translate(${-x},${-(y + h)})` }), w = h * .5, t = h * .115;
+    const hz = yc => (x0 => `${x0 + t * .55},${yc} ${x0 + t * 1.05},${yc - t / 2} ${x0 + w - t * 1.05},${yc - t / 2} ${x0 + w - t * .55},${yc} ${x0 + w - t * 1.05},${yc + t / 2} ${x0 + t * 1.05},${yc + t / 2}`);
+    const vt = (dx, y1, y2) => (x0 => { const xc = x0 + dx; return `${xc},${y1 + t * .1} ${xc + t / 2},${y1 + t * .6} ${xc + t / 2},${y2 - t * .6} ${xc},${y2 - t * .1} ${xc - t / 2},${y2 - t * .6} ${xc - t / 2},${y1 + t * .6}`; });
+    const P = { a: hz(y + t / 2), g: hz(y + h / 2), d: hz(y + h - t / 2), f: vt(t / 2, y + t / 2, y + h / 2), b: vt(w - t / 2, y + t / 2, y + h / 2), e: vt(t / 2, y + h / 2, y + h - t / 2), c: vt(w - t / 2, y + h / 2, y + h - t / 2) };
+    let cx = x;
+    for (const c of String(str)) {
+      if (c === ':') { [.3, .64].forEach(k => el(grp, 'rect', { x: cx + h * .06, y: y + h * k, width: t, height: t, fill: color })); cx += h * .3; continue; }
+      if (c === '.') { el(grp, 'rect', { x: cx + h * .03, y: y + h - t, width: t, height: t, fill: color }); cx += h * .24; continue; }
+      for (const k in P) el(grp, 'polygon', { points: P[k](cx), fill: color, opacity: (SEG[c] || '').includes(k) ? 1 : .07 });
+      cx += h * .64;
+    }
+  }
+  const cap = (x, y, t, c) => el(g, 'text', { x, y, 'font-size': 22, fill: c || VF, opacity: .85, style: 'font-variation-settings:"wdth" 100,"wght" 600;letter-spacing:.22em' }, t);
+  const frame = (x, y, w, h) => el(s, 'rect', { x, y, width: w, height: h, rx: 10, fill: 'none', stroke: FR, 'stroke-width': 2 });
+  frame(24, 136, 770, 336); cap(46, 172, 'DIFF BEST', G2); seg7(70, 190, 208, '-0.84', G2);
+  for (let i = 0; i < 36; i++) el(g, 'rect', { x: 50 + i * 20, y: 424, width: 15, height: 26, fill: i < 18 ? G2 : '#ff3b30', opacity: i >= 10 && i < 18 ? 1 : .1 });
+  frame(810, 136, 446, 336); cap(832, 172, 'LAP TIME'); seg7(836, 196, 124, '1:12.3', VF);
+  cap(832, 388, 'SECTOR'); cap(832, 436, 'S2', G2); seg7(880, 400, 44, '-0.31', G2);
+  frame(24, 488, 1232, 196);
+  cap(46, 524, 'LAST'); seg7(46, 550, 78, '1:52.34', VF); cap(130, 524, '+0.41', '#ff3b30');
+  cap(400, 524, 'BEST'); seg7(400, 550, 78, '1:51.12', VF);
+  cap(770, 524, 'LAP'); seg7(770, 550, 78, '23', VF);
+  cap(930, 524, 'TIME'); seg7(930, 550, 78, '0:36:15', VF);
+  ['REC', 'GNSS', 'LTE', 'OIL'].forEach((t, i) => { el(g, 'rect', { x: 24 + i * 132, y: 718, width: 112, height: 40, rx: 6, fill: 'none', stroke: G2, 'stroke-width': 2 });
+    el(g, 'text', { x: 80 + i * 132, y: 747, 'font-size': 24, 'text-anchor': 'middle', fill: G2, style: 'font-variation-settings:"wdth" 100,"wght" 600;letter-spacing:.14em' }, t); });
+  cap(1000, 748, 'CLOCK'); seg7(1112, 716, 40, '11:16', VF);
+})();
+</script>
+</body>
+</html>

@@ -9,12 +9,13 @@ shown is worked out in dash_model.py. Settings: ~/.config/ecocapture-dash.json (
   ecocapture_dash.py                    the dash
   ecocapture_dash.py --demo             a made-up drive (laps, the gap, a pit stop, oil heating up to 130 C,
                                         two oil pressure drops: one alone, one with the temperatures)
-  ecocapture_dash.py --state warn       one fixed screen: normal start pit pitbox pitlane shift limit warn
+  ecocapture_dash.py --state warn       one fixed screen: normal slower start pit pitbox pitlane shift limit warn
                                         warnpress warn2 warn3 lost stale sendwait sendoff (warn2: oil pressure
                                         + oil, warn3: all three warnings; pitlane: 63 km/h after the line in
                                         the pit lane; sendwait: sending on but nothing going out, sendoff: off)
   ecocapture_dash.py --sound warn       play the warning sound once and exit (--volume 0.3)
-  --size 1920x1080 --snapshot out.png   window size, and save the first frame as PNG then exit
+  --size 1920x1080 --snapshot out.png   window size; --snapshot paints the screen into a PNG and exits
+                                        (no window; --flash-dark: the dark half of the flashing)
   --no-pause                            leave the other display apps alone (checking on a running UNO Q)
 """
 from __future__ import annotations
@@ -39,10 +40,19 @@ from dash_model import DashModel, load_config, rpm_segments, segment_colours, to
 
 CONFIG_PATH = Path.home() / '.config' / 'ecocapture-dash.json'
 LAPREF_PATH = Path.home() / '.cache' / 'ecocapture-dash' / 'lapref.json'
-FONT_NUM = "'DejaVu Sans', 'Noto Sans CJK JP', sans-serif"
-FONT_TEXT = "'Noto Sans CJK JP', 'DejaVu Sans', sans-serif"
+# The fonts, the first the machine has. Numbers: Bahnschrift (a DIN, on a Windows PC only: what the
+# mock-up was drawn with, for checking there); the UNO Q has DejaVu Sans until a DIN that may be shipped is
+# chosen and put first here. (family, weight, variable-font settings, the same for the thin dashes)
+NUM_FONTS = (('Bahnschrift', 500, 'wdth=88,wght=500', 'wdth=88,wght=300'), ('DejaVu Sans', 700, None, None))
+TEXT_FONTS = (('Noto Sans CJK JP', 500), ('Yu Gothic UI', 600), ('DejaVu Sans', 700))
+DESIGN_W, DESIGN_H = 1280.0, 800.0  # the mock-up's canvas (docs/design/dash_mock_simple_20261119.html)
+GREEN, YELLOW, RED, BLUE = '#2fc64c', '#f2c418', '#ec3030', '#3b9dff'
+WHITE, UNIT, GREY, DIM, OFF = '#f2f2f2', '#bdbdbd', '#8a8a8a', '#555555', '#262626'
+PLATE_RED = '#e01414'
+SEG = {'g': GREEN, 'y': YELLOW, 'r': RED}
+SEG_DARK = '#3a0606'
+SEG_FILL = 0.893  # a segment's width over its pitch (the gap is the rest), as the 30-segment bar had
 WARN_SCALE = {1: 1.0, 2: 0.75, 3: 0.55}  # the warnings in the band, by how many are on (they share its width)
-SEND_CLASS = {'ok': 'chip-ok', 'warn': 'chip-warn', 'off': 'chip-off'}  # the sending light; not known: as off
 FLASH_PERIOD_S = 0.5  # bright and dark red twice a second while flashing (under 3 a second: photosensitivity)
 
 
@@ -154,7 +164,7 @@ def fixed_state(config, name, rpm=None):
     temps = {'normal': (98, 88, 420), 'start': (92, 84, 430), 'pit': (101, 91, 410), 'pitbox': (101, 91, 150),
              'warn': (122, 104, 400), 'warnpress': (104, 94, 85), 'warn2': (124, 105, 150), 'warn3': (128, 113, 140),
              'lost': (None, 93, 420), 'stale': (98, 88, 420), 'pitlane': (101, 91, 300),
-             'shift': (98, 88, 450), 'limit': (98, 88, 460), 'sendwait': (98, 88, 420), 'sendoff': (98, 88, 420)}[name]
+             'shift': (98, 88, 450), 'limit': (98, 88, 460), 'slower': (98, 88, 420), 'sendwait': (98, 88, 420), 'sendoff': (98, 88, 420)}[name]
     if name == 'start':
         lap.update(CurrentLap=0, LapCount=0, ElapsedTime=None, LapTime=None, BestLap=None, RaceTime=None, LapDiffS=None, LastLapPit=None)
     if name in ('pit', 'pitbox', 'pitlane'):  # the in lap was a pit lap, the running lap started in the pit lane
@@ -178,68 +188,249 @@ def fixed_state(config, name, rpm=None):
         state, _ = model.update(frame, 100.0 + k * 0.1)
     if name == 'stale':
         state, _ = model.update(None, 100.0 + 8 + 12)
-    if name not in ('start', 'stale', 'pit', 'pitbox', 'pitlane'):
+    if name == 'slower':
+        state.update(delta='+1.27', delta_kind='slower', delta_frac=0.635)
+    elif name not in ('start', 'stale', 'pit', 'pitbox', 'pitlane'):
         state.update(delta='−0.84', delta_kind='faster', delta_frac=-0.42)
     return state
 
 
-def css_for(w, h):
-    big = int(min(0.15 * h, 0.105 * w))
-    mid, small = int(big * 0.6), int(big * 0.44)
-    cap, chip = int(max(16, 0.042 * h)), int(max(16, 0.036 * h))
-    rad, cp = int(0.012 * h), int(0.012 * h)
-    return f"""
-    window, .root {{ background-color: #000000; }}
-    .cell {{ background-color: #151515; border-radius: {rad}px; padding: {cp}px {int(cp * 1.6)}px; }}
-    .cap {{ color: #a8a8a8; font-family: {FONT_TEXT}; font-size: {cap}px; }}
-    .note {{ font-family: {FONT_NUM}; font-size: {int(cap * 1.25)}px; font-weight: bold; }}
-    .num {{ color: #f4f4f4; font-family: {FONT_NUM}; font-weight: bold; }}
-    .big {{ font-size: {big}px; }}
-    .mid {{ font-size: {mid}px; }}
-    .small {{ font-size: {small}px; }}
-    .waiting {{ font-family: {FONT_TEXT}; font-size: {int(small * 0.8)}px; color: #ffd060; }}
-    .faster {{ color: #38e05a; }}
-    .slower {{ color: #ff4a4a; }}
-    .even {{ color: #f4f4f4; }}
-    .pitnote {{ color: #5aaeff; }}
-    .bar-bg {{ background-color: #2c2c2c; }}
-    .bar-mid {{ background-color: #9a9a9a; }}
-    .bar-faster {{ background-color: #2fc64c; }}
-    .bar-slower {{ background-color: #e83a3a; }}
-    .chip {{ font-family: {FONT_TEXT}; font-size: {chip}px; font-weight: bold; padding: 2px {int(chip * 0.5)}px; border-radius: {rad}px; }}
-    .chip-ok {{ color: #38e05a; background-color: #0f2a14; }}
-    .chip-warn {{ color: #1c1000; background-color: #ffb020; }}
-    .chip-bad {{ color: #ffffff; background-color: #d81e1e; }}
-    .chip-off {{ color: #a8a8a8; background-color: #262626; }}
-    .notice {{ font-family: {FONT_TEXT}; font-size: {int(mid * 0.55)}px; font-weight: bold; border-radius: {rad}px; }}
-    .notice-none {{ background-color: transparent; color: transparent; }}
-    .notice-pit {{ background-color: #1f64c8; color: #ffffff; }}
-    .notice-faster {{ background-color: #2fc64c; color: #000000; }}
-    .notice-slower {{ background-color: #e83a3a; color: #ffffff; }}
-    .notice-even {{ background-color: #f4f4f4; color: #000000; }}
-    .banner {{ background-color: #e01414; border-radius: {rad}px; }}
-    .banner.banner-dim {{ background-color: #520808; }}
-    .banner label {{ color: #ffffff; font-weight: bold; }}
-    .banner .warn-name {{ font-family: {FONT_TEXT}; }}
-    .banner .warn-val {{ font-family: {FONT_NUM}; }}
-    {''.join(f'.banner .warn-name.n{n} {{ font-size: {int(mid * 0.9 * k)}px; }} .banner .warn-val.n{n} {{ font-size: {int(big * k)}px; }} '
-             for n, k in WARN_SCALE.items())}
-    .seg {{ border-radius: {max(2, rad // 2)}px; }}
-    .seg-off {{ background-color: #262626; }}
-    .seg-g {{ background-color: #2fc64c; }}
-    .seg-y {{ background-color: #f2c418; }}
-    .seg-r {{ background-color: #ec3030; }}
-    .seg-dark {{ background-color: #3a0606; }}
-    .rpm {{ color: #f4f4f4; font-family: {FONT_NUM}; font-weight: bold; font-size: {mid}px; padding: 0 {int(cp * 0.8)}px; border-radius: {rad}px; }}
-    .rpm-limit {{ color: #000000; background-color: #ffffff; }}
-    .spd {{ color: #f4f4f4; font-family: {FONT_NUM}; font-weight: bold; font-size: {mid}px; padding: 0 {int(cp * 0.8)}px; border-radius: {rad}px; }}
-    .spd-warn {{ color: #ffd060; }}
-    .spd-over {{ color: #ffffff; background-color: #e01414; }}
-    .stale {{ background-color: #1a1a1a; }}
-    .stale label {{ color: #d8d8d8; font-family: {FONT_TEXT}; }}
-    .stale-big {{ font-size: {int(mid * 0.6)}px; font-weight: bold; }}
-    .stale-sub {{ font-size: {cap}px; }}
-    """.encode()
+def rgb(colour):
+    return tuple(int(colour[k:k + 2], 16) / 255.0 for k in (1, 3, 5))
+
+
+class Painter:
+    """Text for paint(): the number font and the text font picked from what the machine has, sizes in the
+    design's pixels (the cairo context is scaled to the screen), positions by the baseline as in the mock-up."""
+
+    def __init__(self, Pango, PangoCairo):
+        self.Pango, self.PangoCairo = Pango, PangoCairo
+        have = {family.get_name() for family in PangoCairo.FontMap.get_default().list_families()}
+        self.num_font = next((font for font in NUM_FONTS if font[0] in have), NUM_FONTS[-1])
+        self.text_font = next((font for font in TEXT_FONTS if font[0] in have), TEXT_FONTS[-1])
+        self.weights = {300: Pango.Weight.LIGHT, 400: Pango.Weight.NORMAL, 500: Pango.Weight.MEDIUM,
+                        600: Pango.Weight.SEMIBOLD, 700: Pango.Weight.BOLD}
+        self.fonts = {}
+
+    def font(self, px, jp, light):
+        key = (round(px, 1), jp, light)
+        if key not in self.fonts:
+            if jp:
+                (family, weight), variations = self.text_font, None
+            else:
+                family, weight, variations, thin = self.num_font
+                if light:
+                    weight, variations = (300, thin) if thin else (400, None)
+            desc = self.Pango.FontDescription()
+            desc.set_family(f'{family}, {TEXT_FONTS[0][0]}, sans-serif')
+            desc.set_weight(self.weights[weight])
+            desc.set_absolute_size(px * self.Pango.SCALE)
+            if variations:
+                desc.set_variations(variations)
+            self.fonts[key] = desc
+        return self.fonts[key]
+
+    def layout(self, ctx, text, px, jp=False, light=False):
+        layout = self.PangoCairo.create_layout(ctx)
+        layout.set_font_description(self.font(px, jp, light))
+        layout.set_text(text, -1)
+        return layout
+
+    def width(self, ctx, text, px, jp=False, light=False):
+        return self.layout(ctx, text, px, jp, light).get_size()[0] / self.Pango.SCALE
+
+    def text(self, ctx, x, y, px, text, colour, anchor='start', jp=False, light=False, fit=None):
+        """Draws text with its baseline at y and its start / middle / end at x; fit: no wider than this
+        (the size comes down, for a font wider than the one the layout was drawn with). Returns the width."""
+        layout = self.layout(ctx, text, px, jp, light)
+        width = layout.get_size()[0] / self.Pango.SCALE
+        if fit and width > fit:
+            layout = self.layout(ctx, text, px * fit / width, jp, light)
+            width = layout.get_size()[0] / self.Pango.SCALE
+        ctx.set_source_rgb(*rgb(colour))
+        ctx.move_to(x - {'start': 0.0, 'middle': width / 2, 'end': width}[anchor],
+                    y - layout.get_baseline() / self.Pango.SCALE)
+        self.PangoCairo.show_layout(ctx, layout)
+        return width
+
+    def num(self, ctx, x, y, px, text, colour, anchor='start', fit=None):
+        """A value; one that has not come ('--') as two thin grey dashes, smaller, so it does not shout."""
+        if text == '--':
+            return self.text(ctx, x, y - px * 0.08, px * 0.6, '– –', DIM, anchor, light=True)
+        return self.text(ctx, x, y, px, text, colour, anchor, fit=fit)
+
+
+def paint(ctx, p, s, W, seg_colours, now):
+    """The whole screen from one state of dash_model, on a canvas W wide and DESIGN_H tall (1280 x 800 is
+    the mock-up docs/design/dash_mock_simple_20261119.html; a wider screen spreads sideways). No frames, no
+    caption plates; colour only where it says something: the engine speed bar, the gap, the warnings."""
+    flash = now % FLASH_PERIOD_S >= FLASH_PERIOD_S / 2
+    left, right, cx = 24.0, W - 24.0, W / 2.0
+
+    def rect(x, y, w, h, colour, radius=0.0):
+        ctx.set_source_rgb(*rgb(colour))
+        if radius:
+            ctx.new_sub_path()
+            for ax, ay, start in ((x + w - radius, y + radius, -0.5), (x + w - radius, y + h - radius, 0.0),
+                                  (x + radius, y + h - radius, 0.5), (x + radius, y + radius, 1.0)):
+                ctx.arc(ax, ay, radius, start * math.pi, (start + 0.5) * math.pi)
+            ctx.close_path()
+        else:
+            ctx.rectangle(x, y, w, h)
+        ctx.fill()
+
+    # The top: the engine speed bar (segments as an AiM's shift lights), and at its right end the engine
+    # speed over the speed, the same size, level with the bar's middle (the user's call, 2026-11-19: the
+    # bar is what is read, so the numbers give it their room)
+    num_right = right - 60
+    num_w = max(96.0, p.width(ctx, '8888', 48))
+    bar_x0, bar_x1 = 12.0, num_right - num_w - 26
+    pitch = (bar_x1 - bar_x0) / (len(seg_colours) - 1 + SEG_FILL)
+    lit, mode = s.get('rpm_lit', 0), s.get('rpm_mode')
+    for k, colour in enumerate(seg_colours):
+        # lit up to the shift point, then the whole bar red, flashing twice a second
+        shade = (SEG_DARK if flash else RED) if mode else SEG[colour] if k < lit else OFF
+        rect(bar_x0 + k * pitch, 24, pitch * SEG_FILL, 88, shade, 4)
+    plate_x = num_right - num_w - 8
+    limit = mode == 'limit'
+    if limit:  # at the limiter the engine speed turns black on white
+        rect(plate_x, 21, right - plate_x, 46, WHITE)
+    p.num(ctx, num_right, 61, 48, s.get('rpm', '--'), '#000000' if limit else WHITE, 'end', fit=num_w)
+    p.text(ctx, num_right + 7, 61, 22, 'rpm', '#000000' if limit else UNIT)
+    speed_kind = s.get('speed_kind')
+    if speed_kind == 'over':  # over the pit lane's limit: a red plate
+        rect(plate_x, 70, right - plate_x, 46, PLATE_RED)
+    p.num(ctx, num_right, 110, 48, s.get('speed', '--'), '#ffd060' if speed_kind == 'warn' else WHITE, 'end', fit=num_w)
+    p.text(ctx, num_right + 7, 110, 22, 'km/h', WHITE if speed_kind == 'over' else UNIT)
+
+    # The gap to the best lap: the one big thing. On a pit lap its place says PIT IN / PIT OUT in blue
+    # (a normal pit stop is information, not a warning), and the sector just completed stands small beside it
+    p.text(ctx, cx, 160, 24, 'ベスト比', GREY, 'middle', jp=True)
+    notice, notice_kind = s.get('notice', ''), s.get('notice_kind')
+    if notice and notice_kind == 'pit':
+        p.text(ctx, cx, 364, 180, notice, BLUE, 'middle', fit=W - 2 * 120)
+    else:
+        colour = {'faster': GREEN, 'slower': RED}.get(s.get('delta_kind'), WHITE)
+        p.num(ctx, cx, 372, 230, s['delta'] if s.get('delta_kind') else '--', colour, 'middle', fit=W - 2 * 300)
+        if notice:
+            p.text(ctx, W - 120, 372, 34, notice, {'faster': GREEN, 'slower': RED}.get(notice_kind, WHITE), 'end')
+    # its ruler: nought in the middle, faster to the left, slower to the right (delta_full_scale_s at the ends)
+    half, tape_y = cx - 120, 412.0
+    rect(cx - half, tape_y, 2 * half, 1, '#444444')
+    for k in range(-4, 5):
+        tick = 16 if k % 2 == 0 else 9
+        rect(cx + k * half / 4 - 0.5, tape_y - tick / 2, 1, tick, DIM)
+    frac = s.get('delta_frac')
+    if frac is not None and abs(frac) >= 1e-3 and notice_kind != 'pit':
+        width = max(2.0, half * abs(frac))
+        rect(cx - width if frac < 0 else cx, tape_y - 7, width, 14, GREEN if frac < 0 else RED)
+    rect(cx - 1.5, tape_y - 16, 3, 32, WHITE)
+
+    # The lap times: the last lap, the running lap, the best. A warning takes this row as a red band, each
+    # warning that is on side by side with its value big (oil pressure first); the gap above and the
+    # row below stay readable (never the whole screen: the pit must see the rest)
+    warns = s['warns'][:len(WARN_SCALE)]
+    if warns:
+        # flashing just after a warning comes on: dark red half the time, the white text stays
+        rect(left, 446, right - left, 146, '#520808' if s.get('warn_flash') and flash else PLATE_RED)
+        scale, cell = WARN_SCALE[len(warns)], (right - left) / len(warns)
+        for k, warn in enumerate(warns):
+            name_px, value_px, unit_px, gap = 62 * scale, 124 * scale, 54 * scale, 28 * scale
+            widths = (p.width(ctx, warn['label'], name_px, jp=True), p.width(ctx, warn['value'], value_px),
+                      p.width(ctx, warn['unit'], unit_px))
+            x = left + cell * (k + 0.5) - (sum(widths) + 1.4 * gap) / 2
+            base = 519 + 0.36 * value_px  # the number's middle on the band's middle
+            p.text(ctx, x, base - 0.14 * value_px, name_px, warn['label'], '#ffffff', jp=True)
+            p.text(ctx, x + widths[0] + gap, base, value_px, warn['value'], '#ffffff')
+            p.text(ctx, x + widths[0] + gap + widths[1] + 0.4 * gap, base, unit_px, warn['unit'], '#ffffff')
+    else:
+        column = (right - left) / 3 - 20
+        cap_w = p.text(ctx, left, 476, 24, '前周', GREY, jp=True)
+        if s.get('last_note'):
+            p.text(ctx, left + cap_w + 16, 476, 28, s['last_note'],
+                   {'pit': BLUE, 'slower': RED, 'faster': GREEN}.get(s.get('last_note_kind'), WHITE))
+        p.num(ctx, left, 574, 100, s['last'], WHITE, fit=column)
+        p.text(ctx, cx, 476, 24, '今の周', GREY, 'middle', jp=True)
+        p.num(ctx, cx, 574, 100, s['lap_now'], WHITE, 'middle', fit=column)
+        p.text(ctx, right, 476, 24, 'ベスト', GREY, 'end', jp=True)
+        p.num(ctx, right, 574, 100, s['best'], WHITE, 'end', fit=column)
+
+    # The lap number, the time since the start, the clock: the same three places, a size smaller
+    rect(0, 608, W, 1, OFF)
+    p.text(ctx, left, 650, 24, '周', GREY, jp=True)
+    p.num(ctx, left, 724, 68, s['lap_no'], WHITE)
+    p.text(ctx, cx, 650, 24, '経過', GREY, 'middle', jp=True)
+    if s['elapsed'] == 'スタート待ち':
+        p.text(ctx, cx, 716, 44, s['elapsed'], WHITE, 'middle', jp=True)
+    else:
+        p.num(ctx, cx, 724, 68, s['elapsed'], WHITE, 'middle')
+    p.text(ctx, right, 650, 24, '時刻', GREY, 'end', jp=True)
+    p.num(ctx, right, 724, 68, s['clock'], WHITE, 'end')
+
+    if s['stale']:  # no values: say so over everything but the lights below
+        rect(0, 0, W, 742, '#1a1a1a')
+        waited = s.get('stale_s')
+        p.text(ctx, cx, 370, 44, 'ロガーの値を待っています' if waited is None else 'ロガーの値が来ていません',
+               '#d8d8d8', 'middle', jp=True)
+        if waited is not None:
+            p.text(ctx, cx, 430, 24, f'最後に受け取ってから {int(waited)} 秒', '#d8d8d8', 'middle', jp=True)
+
+    # The logger's lights, small along the bottom: all well is a green dot and grey words; what needs a
+    # look is a yellow plate, what has stopped a red one. From the left: the log, the burnt-in video
+    # (with the time it can still record), sending (SPEC.md M-2), GNSS, the oil sensors. A new light is
+    # one more entry here: the row has the room
+    lights = [('記録', 'ok') if s['rec'] else ('記録停止', 'bad')]
+    if s.get('video'):
+        lights.append((s['video'], 'ok' if s.get('video_kind') == 'ok' else 'warn'))
+    # sending (dash_model.send_light): yellow when it is on but nothing goes out, grey when switched off
+    # or not known (not a fault: nothing to do while driving)
+    lights.append((s.get('send', '送信 --'), {'ok': 'ok', 'warn': 'warn'}.get(s.get('send_kind'), 'off')))
+    lights.append(('GNSS', 'ok') if s['gnss'] else ('GNSS未測位', 'warn'))
+    lights.append((s['sensor'][0], 'ok' if s['sensor'][1] else 'warn'))
+    x = right
+    for words, kind in reversed(lights):
+        width = p.width(ctx, words, 22, jp=True)
+        if kind in ('warn', 'bad'):
+            rect(x - width - 24, 757, width + 24, 33, '#ffb020' if kind == 'warn' else '#d81e1e')
+            p.text(ctx, x - 12, 782, 22, words, '#1c1000' if kind == 'warn' else '#ffffff', 'end', jp=True)
+            x -= width + 24 + 30
+        else:
+            p.text(ctx, x, 782, 22, words, GREY, 'end', jp=True)
+            rect(x - width - 20, 766, 10, 10, GREEN if kind == 'ok' else DIM)
+            x -= width + 20 + 32
+
+
+def snapshot(args, config):
+    """Paints one screen straight into a PNG (--snapshot): the fixed screen of --state, else what the
+    logger is sending now. No window and no X needed. The size is --size, else the screen's, else the design's."""
+    import cairo
+    import gi
+    gi.require_version('Pango', '1.0')
+    gi.require_version('PangoCairo', '1.0')
+    from gi.repository import Pango, PangoCairo
+    if args.size:
+        w, h = (int(v) for v in args.size.lower().split('x'))
+    else:
+        try:
+            gi.require_version('Gdk', '3.0')
+            from gi.repository import Gdk
+            screen = Gdk.Screen.get_default()
+            w, h = screen.get_width(), screen.get_height()
+        except Exception:
+            w, h = int(DESIGN_W), int(DESIGN_H)
+    if args.state:
+        state = fixed_state(config, args.state, args.rpm)
+    else:
+        state, _ = DashModel(config, LAPREF_PATH).update(fetch(config['api']), time.monotonic())
+    surface = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
+    ctx = cairo.Context(surface)
+    k = min(h / DESIGN_H, w / DESIGN_W)
+    ctx.translate(0, (h - DESIGN_H * k) / 2)
+    ctx.scale(k, k)
+    # --flash-dark: the dark half of the flashing (the bar at the shift point, a new warning's band)
+    paint(ctx, Painter(Pango, PangoCairo), state, w / k, segment_colours(rpm_segments(config)),
+          FLASH_PERIOD_S * 0.75 if args.flash_dark else 0.0)
+    surface.write_to_png(args.snapshot)
 
 
 def run_gui(args, config):
@@ -248,33 +439,14 @@ def run_gui(args, config):
     import gi
     gi.require_version('Gtk', '3.0')
     gi.require_version('Gdk', '3.0')
-    from gi.repository import Gdk, GLib, Gtk, Pango
-
-    def label(text, *classes, xalign=0.0):
-        widget = Gtk.Label(label=text)
-        widget.set_xalign(xalign)
-        widget.set_ellipsize(Pango.EllipsizeMode.END)
-        for name in classes:
-            widget.get_style_context().add_class(name)
-        return widget
-
-    def classes(widget, *names, keep=()):
-        context = widget.get_style_context()
-        for name in context.list_classes():
-            if name not in keep and name not in names:
-                context.remove_class(name)
-        for name in names:
-            context.add_class(name)
-
-    def box(vertical=False, *children, spacing=0, cls=None):
-        widget = Gtk.Box(orientation=Gtk.Orientation.VERTICAL if vertical else Gtk.Orientation.HORIZONTAL, spacing=spacing)
-        for child in children:
-            widget.pack_start(child, False, False, 0)
-        if cls:
-            widget.get_style_context().add_class(cls)
-        return widget
+    gi.require_version('Pango', '1.0')
+    gi.require_version('PangoCairo', '1.0')
+    from gi.repository import Gdk, GLib, Gtk, Pango, PangoCairo
 
     class Dash(Gtk.Window):
+        """One drawing area painted by paint() (2026-11-19; it was boxes and labels styled with CSS):
+        the layout is fixed by the mock-up's coordinates, which GTK's boxes could not hold to."""
+
         def __init__(self):
             super().__init__(title='EcoCapture DASH')
             self.set_decorated(False)
@@ -285,170 +457,39 @@ def run_gui(args, config):
                 self.size = (screen.get_width(), screen.get_height())
             self.set_default_size(*self.size)
             self.move(0, 0)
-            self.css = Gtk.CssProvider()
-            Gtk.StyleContext.add_provider_for_screen(screen, self.css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-            self.build()
-            self.apply_size(*self.size)
+            self.state = None
+            self.painter = Painter(Pango, PangoCairo)
+            self.seg_colours = segment_colours(rpm_segments(config))
+            self.area = Gtk.DrawingArea()
+            self.area.connect('draw', self.on_draw)
+            self.add(self.area)
             self.connect('realize', self.on_realize)
             self.connect('configure-event', self.on_configure)
             screen.connect('size-changed', self.on_screen)  # the HDMI mode set again after a reconnect
             self.connect('destroy', lambda _w: Gtk.main_quit())
 
-        def build(self):
-            # The top row: the engine speed bar (segments as an AiM's shift lights), the engine speed and the speed
-            self.segs = []
-            self.seg_colours = segment_colours(rpm_segments(config))
-            self.seg_row = Gtk.Box(homogeneous=True)
-            for _ in self.seg_colours:
-                seg = Gtk.Box()
-                seg.get_style_context().add_class('seg')
-                seg.set_valign(Gtk.Align.CENTER)
-                self.seg_row.pack_start(seg, True, True, 0)
-                self.segs.append(seg)
-            self.rpm = label('--', 'rpm', xalign=1.0)
-            self.spd = label('--', 'spd', xalign=1.0)
-            for widget in (self.rpm, self.spd):
-                widget.set_ellipsize(Pango.EllipsizeMode.NONE)
-                widget.set_valign(Gtk.Align.CENTER)
-            self.rpm_box, self.spd_box = box(False), box(False)
-            self.rpm_box.pack_end(self.rpm, False, False, 0)
-            self.spd_box.pack_end(self.spd, False, False, 0)
-            self.row0 = Gtk.Box(spacing=0)
-            self.row0.pack_start(self.seg_row, True, True, 0)
-            self.row0.pack_start(self.rpm_box, False, False, 0)
-            self.row0.pack_start(self.spd_box, False, False, 0)
-            self.lap_now = label('--', 'num', 'big')
-            self.delta = label('--', 'num', 'big')
-            self.bar = Gtk.Fixed()
-            self.bar_bg, self.bar_fill, self.bar_mid = Gtk.Box(), Gtk.Box(), Gtk.Box()
-            self.bar_bg.get_style_context().add_class('bar-bg')
-            self.bar_mid.get_style_context().add_class('bar-mid')
-            for part in (self.bar_bg, self.bar_fill, self.bar_mid):
-                self.bar.put(part, 0, 0)
-            # A normal pit stop is information, not a warning: a blue strip under the running lap.
-            # Always there (empty when nothing to say), so the numbers never move.
-            self.notice = label('', 'notice', 'notice-none', xalign=0.5)
-            self.cell_now = box(True, label('今の周', 'cap'), self.lap_now, self.notice, cls='cell')
-            self.bar_holder = box(True)  # as tall as the strip, so the two big numbers stay level
-            self.bar_holder.pack_start(self.bar, True, False, 0)
-            self.bar.set_valign(Gtk.Align.CENTER)
-            self.cell_delta = box(True, label('ベスト比', 'cap'), self.delta, self.bar_holder, cls='cell')
-            self.row1 = Gtk.Box(spacing=0, homogeneous=True)
-            self.row1.pack_start(self.cell_now, True, True, 0)
-            self.row1.pack_start(self.cell_delta, True, True, 0)
-
-            self.last = label('--', 'num', 'mid')
-            self.last_note = label('', 'note')
-            self.best = label('--', 'num', 'mid')
-            self.lap_no = label('--', 'num', 'mid')
-            cap_last = box(False, label('前周', 'cap'), self.last_note)
-            self.cell_last = box(True, cap_last, self.last, cls='cell')
-            self.cell_best = box(True, label('ベスト', 'cap'), self.best, cls='cell')
-            self.cell_lap = box(True, label('周', 'cap'), self.lap_no, cls='cell')
-            self.row2 = box(False, self.cell_last, self.cell_best, self.cell_lap)
-            for cell, value in ((self.cell_now, self.lap_now), (self.cell_delta, self.delta), (self.cell_last, self.last),
-                                (self.cell_best, self.best), (self.cell_lap, self.lap_no)):
-                cell.set_child_packing(value, True, True, 0, Gtk.PackType.START)  # the number centred below its caption
-            # The warnings: a red band over the middle row, each warning that is on side by side with its
-            # value big (oil pressure first). The running lap, the gap and the bottom row stay readable
-            # (never the whole screen: the pit must see the rest).
-            self.warn_items = []
-            self.warn_row = Gtk.Box(homogeneous=True)
-            for _ in range(len(WARN_SCALE)):
-                name, value = label('', 'warn-name'), label('', 'warn-val')
-                for widget in (name, value):
-                    widget.set_ellipsize(Pango.EllipsizeMode.NONE)
-                    widget.set_valign(Gtk.Align.CENTER)
-                item = box(False, name, value)
-                item.set_halign(Gtk.Align.CENTER)
-                self.warn_row.pack_start(item, True, True, 0)
-                self.warn_items.append((item, name, value))
-            self.banner = box(False, cls='banner')
-            self.banner.set_center_widget(self.warn_row)
-            self.stack = Gtk.Stack()
-            self.stack.add_named(self.row2, 'normal')
-            self.stack.add_named(self.banner, 'banner')
-
-            self.elapsed = label('--', 'num', 'small')
-            self.clock = label('--', 'num', 'small')
-            self.chip_rec = label('記録', 'chip', xalign=0.5)
-            self.chip_gnss = label('GNSS', 'chip', xalign=0.5)
-            self.chip_send = label('送信', 'chip', xalign=0.5)
-            self.chip_oil = label('油温センサー', 'chip', xalign=0.5)
-            for widget in (self.elapsed, self.clock):
-                widget.set_ellipsize(Pango.EllipsizeMode.NONE)  # the lights give way, never the numbers
-            self.row3 = Gtk.Box(spacing=0)
-            self.row3.get_style_context().add_class('cell')
-            self.cap_elapsed, self.cap_clock = label('経過', 'cap'), label('時刻', 'cap')
-            for widget in (self.cap_elapsed, self.elapsed, self.cap_clock, self.clock):
-                widget.set_valign(Gtk.Align.CENTER)
-                self.row3.pack_start(widget, False, False, 0)
-            # from the left: recording, GNSS, sending (SPEC.md M-2), then the oil sensors
-            for chip in (self.chip_oil, self.chip_send, self.chip_gnss, self.chip_rec):
-                chip.set_valign(Gtk.Align.CENTER)
-                self.row3.pack_end(chip, False, False, 0)
-
-            self.root = box(True, self.row0, self.row1, self.stack, self.row3, cls='root')
-            self.stale_big = label('', 'stale-big', xalign=0.5)
-            self.stale_sub = label('', 'stale-sub', xalign=0.5)
-            self.stale = box(True, cls='stale')
-            self.stale.set_center_widget(box(True, self.stale_big, self.stale_sub, spacing=12))
-            self.overlay = Gtk.Overlay()
-            self.overlay.add(self.root)
-            self.overlay.add_overlay(self.stale)
-            self.add(self.overlay)
-
-        def apply_size(self, w, h):
-            self.size = (w, h)
-            try:
-                self.css.load_from_data(css_for(w, h))
-            except GLib.Error as exc:  # an older GTK without a property: keep going with the rest
-                print('css:', exc, file=sys.stderr)
-            pad, gap = int(0.015 * h), int(0.011 * h)
-            inner_w, inner_h = w - 2 * pad, h - 2 * pad - 3 * gap
-            self.root.set_spacing(gap)
-            self.root.set_margin_top(pad); self.root.set_margin_bottom(pad)
-            self.root.set_margin_start(pad); self.root.set_margin_end(pad)
-            self.row1.set_spacing(gap); self.row2.set_spacing(gap)
-            r0, r1, r2 = int(inner_h * 0.15), int(inner_h * 0.38), int(inner_h * 0.29)
-            self.row0.set_size_request(inner_w, r0)
-            self.row1.set_size_request(inner_w, r1)
-            self.stack.set_size_request(inner_w, r2)
-            self.row3.set_size_request(inner_w, inner_h - r0 - r1 - r2)
-            self.row0.set_spacing(gap)
-            # the gaps narrower for more segments (ten: 0.4% of the width, twenty: 0.28%), so the lit part reads as one bar
-            self.seg_row.set_spacing(max(2, int(0.004 * w * (10 / len(self.segs)) ** 0.5)))
-            for seg in self.segs:
-                seg.set_size_request(-1, int(r0 * 0.78))
-            self.rpm_box.set_size_request(int(0.17 * inner_w), r0)
-            self.spd_box.set_size_request(int(0.22 * inner_w), r0)
-            avail = inner_w - 2 * gap
-            for cell, share in ((self.cell_last, .42), (self.cell_best, .34), (self.cell_lap, .24)):
-                cell.set_size_request(int(avail * share), r2)
-            self.row3.set_spacing(int(0.012 * w))
-            self.cap_clock.set_margin_start(int(0.03 * w))
-            for chip in (self.chip_rec, self.chip_gnss, self.chip_send):
-                chip.set_margin_start(int(0.006 * w))
-            cell_pad = int(0.012 * h) * 1.6
-            self.bar_w = int((inner_w - gap) / 2 - 2 * cell_pad)
-            self.bar_h = max(10, int(0.028 * h))
-            self.bar.set_size_request(self.bar_w, self.bar_h)
-            strip_h = int(0.09 * h)
-            self.notice.set_size_request(-1, strip_h)
-            self.bar_holder.set_size_request(-1, strip_h)
-            self.bar_bg.set_size_request(self.bar_w, self.bar_h)
-            self.bar_mid.set_size_request(max(2, int(0.003 * w)), self.bar_h + 0)
-            self.bar.move(self.bar_mid, self.bar_w // 2 - max(2, int(0.003 * w)) // 2, 0)
+        def on_draw(self, _widget, ctx):
+            w, h = self.area.get_allocated_width(), self.area.get_allocated_height()
+            ctx.set_source_rgb(0, 0, 0)
+            ctx.paint()
+            if self.state:
+                # the design's height fills the screen and the width spreads; a screen narrower than
+                # the design (4:3) is fitted by its width instead, with black above and below
+                k = min(h / DESIGN_H, w / DESIGN_W)
+                ctx.translate(0, (h - DESIGN_H * k) / 2)
+                ctx.scale(k, k)
+                paint(ctx, self.painter, self.state, w / k, self.seg_colours, time.monotonic())
+            return False
 
         def on_configure(self, _widget, event):
             if (event.width, event.height) != self.size and not args.size:
-                self.apply_size(event.width, event.height)
+                self.size = (event.width, event.height)
             return False
 
         def on_screen(self, screen):
             if not args.size:
-                self.resize(screen.get_width(), screen.get_height())
-                self.apply_size(screen.get_width(), screen.get_height())
+                self.size = (screen.get_width(), screen.get_height())
+                self.resize(*self.size)
 
         def on_realize(self, _widget):
             window = self.get_window()
@@ -463,95 +504,12 @@ def run_gui(args, config):
             return True
 
         def show_state(self, s):
-            self.stale.set_visible(bool(s['stale']))
-            if s['stale']:
-                waited = s.get('stale_s')
-                self.stale_big.set_text('ロガーの値を待っています' if waited is None else 'ロガーの値が来ていません')
-                self.stale_sub.set_text('' if waited is None else f'最後に受け取ってから {int(waited)} 秒')
-            warns = s['warns'][:len(self.warn_items)]
-            self.stack.set_visible_child_name('banner' if warns else 'normal')
-            # flashing just after a warning comes on: dark red half the time, the white text stays
-            dim = bool(s.get('warn_flash')) and time.monotonic() % FLASH_PERIOD_S >= FLASH_PERIOD_S / 2
-            classes(self.banner, 'banner', *(('banner-dim',) if dim else ()))
-            n, w = max(1, len(warns)), self.size[0]
-            self.warn_row.set_spacing(int(0.04 * w))
-            for k, (item, name, value) in enumerate(self.warn_items):
-                item.set_visible(k < len(warns))
-                if k >= len(warns):
-                    continue
-                item.set_spacing(int(0.025 * w * WARN_SCALE[n]))
-                name.set_text(warns[k]['label'])
-                # the unit smaller, as the s of the gap: the number is the thing to read
-                value.set_markup(f"{warns[k]['value']}<span size=\"60%\">{warns[k]['unit']}</span>")
-                classes(name, 'warn-name', f'n{n}')
-                classes(value, 'warn-val', f'n{n}')
-            # The engine speed bar: lit up to the shift point, then the whole bar red, flashing twice a second
-            lit, mode = s.get('rpm_lit', 0), s.get('rpm_mode')
-            dark = mode is not None and time.monotonic() % FLASH_PERIOD_S >= FLASH_PERIOD_S / 2
-            for k, seg in enumerate(self.segs):
-                colour = ('dark' if dark else 'r') if mode else self.seg_colours[k] if k < lit else 'off'
-                classes(seg, 'seg', 'seg-' + colour)
-            self.rpm.set_text(s.get('rpm', '--'))
-            classes(self.rpm, 'rpm', *(('rpm-limit',) if mode == 'limit' else ()))
-            speed = s.get('speed', '--')
-            self.spd.set_markup(speed if speed == '--' else speed + '<span size="45%"> km/h</span>')
-            kind = s.get('speed_kind')
-            classes(self.spd, 'spd', *(('spd-' + kind,) if kind else ()))
-            self.notice.set_text(s['notice'])
-            classes(self.notice, 'notice', f"notice-{s['notice_kind']}" if s['notice'] and s.get('notice_kind') else 'notice-none')
-
-            self.lap_now.set_text(s['lap_now'])
-            if s['delta_kind']:  # a number: say it is seconds, smaller, so the number stays the thing to read
-                self.delta.set_markup(f"{s['delta']}<span size=\"55%\">s</span>")
-            else:
-                self.delta.set_text(s['delta'])
-            classes(self.delta, 'num', 'big', s['delta_kind'] or 'even')
-            frac = s['delta_frac']
-            half = self.bar_w // 2
-            if frac is None or abs(frac) < 1e-3:
-                self.bar_fill.set_visible(False)
-            else:
-                width = max(2, int(half * abs(frac)))
-                self.bar_fill.set_size_request(width, self.bar_h)
-                self.bar.move(self.bar_fill, half - width if frac < 0 else half, 0)
-                classes(self.bar_fill, 'bar-faster' if frac < 0 else 'bar-slower')
-                self.bar_fill.set_visible(True)
-            self.last.set_text(s['last'])
-            self.last_note.set_text(('　' + s['last_note']) if s['last_note'] else '')
-            classes(self.last_note, 'note', {'pit': 'pitnote', 'slower': 'slower', 'faster': 'faster'}.get(s['last_note_kind'], 'even'))
-            self.best.set_text(s['best'])
-            self.lap_no.set_text(s['lap_no'])
-            waiting = s['elapsed'] == 'スタート待ち'
-            self.elapsed.set_text(s['elapsed'])
-            classes(self.elapsed, *(('waiting',) if waiting else ('num', 'small')))
-            self.clock.set_text(s['clock'])
-            # One light for recording (the row has no room for a fourth: the oil warning must stay readable):
-            # the log stopped, else the burnt-in video short of time or not recording, else all well
-            if not s['rec']:
-                self.chip_rec.set_text('記録停止')
-                classes(self.chip_rec, 'chip', 'chip-bad')
-            elif s.get('video_kind') == 'warn':
-                self.chip_rec.set_text(s['video'])
-                classes(self.chip_rec, 'chip', 'chip-warn')
-            else:
-                self.chip_rec.set_text('記録中')
-                classes(self.chip_rec, 'chip', 'chip-ok')
-            self.chip_gnss.set_text('GNSS' if s['gnss'] else 'GNSS未測位')
-            classes(self.chip_gnss, 'chip', 'chip-ok' if s['gnss'] else 'chip-warn')
-            # Sending (dash_model.send_light): green while rows go out, yellow when sending is on but nothing
-            # goes out, grey when it is switched off or not known (not a fault: nothing to do while driving)
-            self.chip_send.set_text(s.get('send', '送信 --'))
-            classes(self.chip_send, 'chip', SEND_CLASS.get(s.get('send_kind'), 'chip-off'))
-            # the oil sensors (the oil pressure only once it has come): yellow when one is lost
-            # (the water temperature still warns for a lost oil temperature)
-            text, ok = s['sensor']
-            self.chip_oil.set_text(text)
-            classes(self.chip_oil, 'chip', 'chip-ok' if ok else 'chip-warn')
+            self.state = s
+            self.area.queue_draw()  # every tick: the flashing (the bar, the band) runs on the clock
 
     dash = Dash()
     dash.show_all()
-    dash.stale.set_visible(False)
-    sound = None if args.state or args.snapshot else Sound(config)  # a layout check never makes a sound
+    sound = None if args.state else Sound(config)  # a layout check never makes a sound
     lock = threading.Lock()
     latest = {}
 
@@ -580,7 +538,7 @@ def run_gui(args, config):
             dash.show_state(state)
         return True
 
-    if not args.no_pause and not args.snapshot:  # the covered admin window, as touch_launcher.py does
+    if not args.no_pause:  # the covered admin window, as touch_launcher.py does
         try:
             from display_load_control import set_paused
             set_paused('ecocapture-native', True)
@@ -594,17 +552,6 @@ def run_gui(args, config):
     signal.signal(signal.SIGINT, stop)
     GLib.timeout_add(100, tick)  # the values come at most 10 times a second
     GLib.timeout_add(1000, dash.keep_above)
-    if args.snapshot:
-        def snap():
-            tick()
-            while Gtk.events_pending():
-                Gtk.main_iteration()
-            window = dash.get_window()
-            pixbuf = Gdk.pixbuf_get_from_window(window, 0, 0, *dash.size)
-            pixbuf.savev(args.snapshot, 'png', [], [])
-            Gtk.main_quit()
-            return False
-        GLib.timeout_add(1500, snap)
     Gtk.main()
 
 
@@ -612,13 +559,14 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description='EcoCapture DASH')
     parser.add_argument('--config', default=str(CONFIG_PATH))
     parser.add_argument('--demo', action='store_true')
-    parser.add_argument('--state', choices=['normal', 'start', 'pit', 'pitbox', 'pitlane', 'shift', 'limit', 'warn',
+    parser.add_argument('--state', choices=['normal', 'slower', 'start', 'pit', 'pitbox', 'pitlane', 'shift', 'limit', 'warn',
                                             'warnpress', 'warn2', 'warn3', 'lost', 'stale', 'sendwait', 'sendoff'])
     parser.add_argument('--sound', choices=['warn'])
     parser.add_argument('--rpm', type=float, help='with --state: this engine speed instead of the state\'s own')
     parser.add_argument('--size')
     parser.add_argument('--snapshot')
     parser.add_argument('--no-pause', action='store_true')
+    parser.add_argument('--flash-dark', action='store_true', help='with --snapshot: the dark half of the flashing')
     parser.add_argument('--volume', type=float, help='with --sound: 0 (silent, checks the path) to 1')
     args = parser.parse_args(argv)
     config = load_config(args.config)
@@ -628,7 +576,10 @@ def main(argv=None):
             sound['volume'] = args.volume
         proc = Sound({**config, 'sound': sound}).play(args.sound)
         return 0 if proc is not None and proc.wait() == 0 else 1
-    run_gui(args, config)
+    if args.snapshot:
+        snapshot(args, config)
+    else:
+        run_gui(args, config)
     return 0
 
 
