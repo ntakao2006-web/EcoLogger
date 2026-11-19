@@ -60,9 +60,9 @@ SKIP = {
     'LapCount', 'CurrentLap', 'LapTime', 'BestLap', 'ElapsedTime', 'RaceTime', 'LapsLeft', 'TimeLimit', 'Margin',
     'Sector', 'LastSector', 'SectorTime',
 }
-STATE = {'ClutchDisengaged'}
+STATE = {'ClutchDisengaged', 'Brake'}
 LABEL = {
-    'Speed': '車速', 'RPM': '回転数', 'Throttle': 'アクセル', 'BatteryVolt': '電圧',
+    'Speed': '車速', 'RPM': '回転数', 'Throttle': 'スロットル', 'Pedal': 'アクセルペダル', 'Brake': 'ブレーキ', 'BatteryVolt': '電圧',
     'LongAccel': '前後G', 'LatAccel': '横G', 'VertAccel': '上下G', 'GyroZ': 'ヨーレート',
     'WaterTemp': '水温', 'OilTemp': '油温', 'IntakeTemp': '吸気温', 'FuelLevelRaw': '燃料',
     'WheelFrontA': '車輪速 前A', 'WheelFrontB': '車輪速 前B', 'WheelRearA': '車輪速 後A', 'WheelRearB': '車輪速 後B',

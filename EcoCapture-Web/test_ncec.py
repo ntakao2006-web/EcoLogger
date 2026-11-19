@@ -27,7 +27,10 @@ class NcecTests(unittest.TestCase):
   for text in ['0 201 00','0 800 00','-1 201 00','2 430 00\n1 430 00']:
    with self.assertRaises(ValueError):decode_text(text)
  def test_preset_and_unknown_fields(self):
-  p=preset();c=Configuration(profile=p['profile'],signals=p['signals']);self.assertEqual(len(c.signals),12)
-  self.assertEqual(Decoder().decode(0x200,bytes(8),0)['values'],{})
+  p=preset();c=Configuration(profile=p['profile'],signals=p['signals']);self.assertEqual(len(c.signals),14)
+  self.assertEqual(Decoder().decode(0x4EC,bytes(8),0)['values'],{})
+  # the accelerator pedal (100 where the foot stops while driving, raw 158) and the brake pedal's switch
+  self.assertEqual(Decoder().decode(0x200,bytes([0,0,0,0,0,0,1,158]),0)['values'],{'Pedal':100.0,'Brake':1})
+  self.assertEqual(Decoder().decode(0x200,bytes(8),1)['values'],{'Pedal':0.0,'Brake':0})
   self.assertFalse(p['obd']['enabled']);self.assertNotIn(0x5C,p['obd']['confirmed_pids'])
 if __name__=='__main__':unittest.main()

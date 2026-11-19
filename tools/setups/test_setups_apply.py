@@ -107,7 +107,7 @@ class ApplyTest(unittest.TestCase):
         self.assertEqual(code, 0, text)
         self.assertEqual(self.device.posts, ['/api/log/stop', '/api/config', '/api/log/start', '/api/podium'])
         self.assertTrue(self.device.recording)
-        self.assertEqual(len(self.device.config['signals']), 17)
+        self.assertEqual(len(self.device.config['signals']), 19)
         self.assertEqual(self.device.podium['channels'], setups.load('vehicle', 'ncec')['send']['channels'])
         saved, = (Path(self.tmp.name) / 'config-backups').glob('*/config.json')
         self.assertEqual(len(json.loads(saved.read_text(encoding='utf-8'))['signals']), 12)   # 控えは入れる前の設定

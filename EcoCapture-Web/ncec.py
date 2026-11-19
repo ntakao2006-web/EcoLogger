@@ -12,8 +12,13 @@ FIELDS=[
  ('IntakeTemp','°C',0x240,4,'uint8',1,-40,None),
  ('FuelLevelRaw','%',0x430,0,'uint8',100/255,0,None),
  ('ClutchDisengaged','',0x231,1,'uint8',1,0,2),
+ # The accelerator pedal as the foot moves it, 0 (off) to 100 (2026-11-20). 100 is raw 158, where the foot stops
+ # while driving (SUGO 2026-11-08: the mode at 157-158; pressed hard it reads up to 171 for a moment, by hand
+ # with the engine off 221), so a reading may pass 100: what shows it stops at 100. Throttle is the valve.
+ ('Pedal','%',0x200,7,'uint8',100/158,0,None),
+ ('Brake','',0x200,6,'uint8',1,0,1),
 ]
-LABELS=dict(zip([x[0] for x in FIELDS],['回転数','車速','前A輪速','前B輪速','後A輪速','後B輪速','水温','水温（冗長）','スロットル','吸気温','燃料（生値）','クラッチ断']))
+LABELS=dict(zip([x[0] for x in FIELDS],['回転数','車速','前A輪速','前B輪速','後A輪速','後B輪速','水温','水温（冗長）','スロットル','吸気温','燃料（生値）','クラッチ断','アクセルペダル','ブレーキ']))
 LABELS['FuelLevel']='燃料（2秒平均）'
 OBD_PIDS=[0x04,0x05,0x0B,0x0C,0x0D,0x0E,0x0F,0x10,0x11,0x1F,0x33,0x34,0x42,0x43,0x44,0x45,0x47,0x49,0x4A,0x4C]
 

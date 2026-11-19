@@ -21,7 +21,7 @@ import setups  # noqa: E402
 
 
 def ncec_fields():
-    """EcoCapture-Web/ncec.py の FIELDS（車載CANの12信号）。本体のコードは pydantic が要るので、式だけを読む"""
+    """EcoCapture-Web/ncec.py の FIELDS（車載CANの14信号）。本体のコードは pydantic が要るので、式だけを読む"""
     source = (REPO / 'EcoCapture-Web' / 'ncec.py').read_text(encoding='utf-8')
     tree = ast.parse(source)
     node = next(n for n in tree.body if isinstance(n, ast.Assign) and n.targets[0].id == 'FIELDS')
@@ -39,7 +39,7 @@ class FilesTest(unittest.TestCase):
     def test_ncec_can_signals_are_the_loggers_preset(self):
         signals = {s['name']: s for s in setups.load('vehicle', 'ncec')['logger']['signals']}
         fields = ncec_fields()
-        self.assertEqual(len(fields), 12)
+        self.assertEqual(len(fields), 14)
         for name, unit, can_id, offset, data_type, scale, add, mask in fields:
             want = {'channel': 1, 'name': name, 'unit': unit, 'can_id': can_id, 'extended': False, 'byte_offset': offset,
                     'data_type': data_type, 'endian': 'big', 'scale': scale, 'offset': add, 'bit_mask': mask,
@@ -52,7 +52,7 @@ class FilesTest(unittest.TestCase):
         signals = {s['name']: s for s in setups.load('vehicle', 'ncec')['logger']['signals']}
         for want in [*defi_volt_setup.DEFI_SIGNALS, *defi_temp_setup.temp_signals()]:
             self.assertTrue(setups.same(signals[want['name']], want), want['name'])
-        self.assertEqual(len(signals), 12 + 5)
+        self.assertEqual(len(signals), 14 + 5)
 
     def test_ncec_send_and_dash_match_the_tools_and_the_dash(self):
         import dash_model

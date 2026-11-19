@@ -295,6 +295,38 @@
       1145.0
      ]
     ]
+   },
+   {
+    "channel": 1,
+    "name": "Pedal",
+    "unit": "%",
+    "can_id": 512,
+    "extended": false,
+    "byte_offset": 7,
+    "data_type": "uint8",
+    "endian": "big",
+    "scale": 0.6329113924050633,
+    "offset": 0.0,
+    "bit_mask": null,
+    "conversion": "linear",
+    "pullup_ohm": null,
+    "ntc_points": []
+   },
+   {
+    "channel": 1,
+    "name": "Brake",
+    "unit": "",
+    "can_id": 512,
+    "extended": false,
+    "byte_offset": 6,
+    "data_type": "uint8",
+    "endian": "big",
+    "scale": 1.0,
+    "offset": 0.0,
+    "bit_mask": 1,
+    "conversion": "linear",
+    "pullup_ohm": null,
+    "ntc_points": []
    }
   ]
  },
@@ -328,7 +360,7 @@
   "oil_press_min_rpm": 1500,
   "rpm_bar_start": 4000,
   "shift_rpm": 7500,
-  "rpm_segments": 30,
+  "rpm_segments": 40,
   "limit_rpm": 7950
  },
  "analysis": {
