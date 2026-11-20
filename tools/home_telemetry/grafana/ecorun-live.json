@@ -41,6 +41,30 @@
       }
     ]
   },
+  "links": [
+    {
+      "type": "link",
+      "title": "NCEC・SUGOの画面",
+      "url": "/grafana/d/sugo-live",
+      "icon": "dashboard",
+      "targetBlank": false,
+      "keepTime": false,
+      "includeVars": false,
+      "asDropdown": false,
+      "tags": []
+    },
+    {
+      "type": "link",
+      "title": "NCEC・作手の画面",
+      "url": "/grafana/d/tsukude-live",
+      "icon": "dashboard",
+      "targetBlank": false,
+      "keepTime": false,
+      "includeVars": false,
+      "asDropdown": false,
+      "tags": []
+    }
+  ],
   "panels": [
     {
       "type": "text",
@@ -860,19 +884,6 @@
         }
       ],
       "id": 8
-    }
-  ],
-  "links": [
-    {
-      "type": "link",
-      "title": "NCEC・SUGOの画面",
-      "url": "/grafana/d/sugo-live",
-      "icon": "dashboard",
-      "targetBlank": false,
-      "keepTime": false,
-      "includeVars": false,
-      "asDropdown": false,
-      "tags": []
     }
   ]
 }

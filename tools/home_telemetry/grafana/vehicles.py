@@ -7,10 +7,11 @@ A vehicle is a room on the server: the last part of the logger's relay URL
 takes rooms it has registered (ecorun.sqlite3, table rooms).
 
   ecorun-live  every room that has data, except the ones below (and the phones' rooms)
-  sugo-live    only the rooms below, listed even before any data has come (the variable
+  sugo-live, tsukude-live (one per course, build_sugo_dashboard.py)
+               only the rooms below, listed even before any data has come (the variable
                does not depend on VictoriaMetrics, so the pages connect at once)
 
-A new vehicle for the circuit screen is one more line in SUGO; rebuild both dashboards.
+A new vehicle for the circuit screens is one more line in SUGO; rebuild all the dashboards.
 """
 import re
 
@@ -20,6 +21,7 @@ SUGO = [   # (room, label on the screen)
 SCREENS = [   # (uid, title of the link to it)
     ('ecorun-live', 'エコランの画面'),
     ('sugo-live', 'NCEC・SUGOの画面'),
+    ('tsukude-live', 'NCEC・作手の画面'),
 ]
 
 

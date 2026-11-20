@@ -1,7 +1,11 @@
-"""Builds sugo-live.json, the pit's Grafana dashboard for the SUGO 120-minute endurance
-(2026-11-08, roadster NCEC; task_sugo_20261108_breakdown.md SG-1-5).
+"""Builds the pit's Grafana dashboards for the roadster NCEC at a circuit, one per course:
+sugo-live.json (SUGO 120-minute endurance, 2026-11-08; task_sugo_20261108_breakdown.md SG-1-5)
+and tsukude-live.json (Autoland Tsukude track day, 2026-12-05; task_tsukude_20261205_breakdown.md
+TS-5-2). The screens are the same but for the title, where the map looks and the race length.
 
-  python build_sugo_dashboard.py      -> writes sugo-live.json next to this file
+  python build_sugo_dashboard.py      -> writes <uid>.json for every course next to this file
+
+A new course is one more entry in COURSES and one more line in vehicles.SCREENS.
 
 The eco-run dashboard (ecorun-live.json) is about a time limit and average speeds; an endurance
 at a circuit is about lap times and keeping the engine alive, so this one is laid out anew and
@@ -32,14 +36,19 @@ from build_dashboard import VM, ROOM, last, pos, stat, target
 
 HERE = Path(__file__).parent
 LIVE = HERE / 'ecorun-live.json'
-OUT = HERE / 'sugo-live.json'
-RACE_MIN = 120
 OIL = (110, 120, 130)     # caution, start cooling, pit in (°C)
 WATER = (100, 110, 120)
-# The whole circuit (OpenStreetMap ways 107580358/107580877/107581644/107581031, 1.08 x 0.53 km)
-MAP_CENTER = (38.14042, 140.77666)
-MAP_ZOOM = 15.75
 G_MAX = 1.25
+# center/zoom show the whole circuit. race_min is the race length the timing sheet counts "残り"
+# down from; 0 for a track day, which has no race (laps.html hides "残り").
+COURSES = [
+    # OpenStreetMap ways 107580358/107580877/107581644/107581031, 1.08 x 0.53 km
+    {'uid': 'sugo-live', 'title': 'SUGO 120分耐久 Live', 'tag': 'sugo', 'race_min': 120,
+     'center': (38.14042, 140.77666), 'zoom': 15.75},
+    # OpenStreetMap way 87329052, 0.11 x 0.20 km (docs/research/tsukude_course_20261119.md)
+    {'uid': 'tsukude-live', 'title': 'オートランド作手 Live', 'tag': 'tsukude', 'race_min': 0,
+     'center': (35.03292, 137.46855), 'zoom': 17.25},
+]
 
 
 def frame(src):
@@ -105,18 +114,22 @@ def gps(at):
     return p
 
 
-def build(live):
+def build(live, course):
+    race_min = course['race_min']
+    clock = (f'経過・残りは、ラップのリセット後に最初にコントロールラインを通ってから{race_min}分で数える。' if race_min
+             else '経過は、ラップのリセット後に最初にコントロールラインを通ってから数える。')
     every = live['panels'] + [q for p in live['panels'] for q in p.get('panels', [])]
     table = next(p for p in every if p['type'] == 'table' and '__name__=~' in json.dumps(p))
 
-    laps_src = (f'/live/laps?room=$room&race_min={RACE_MIN}&oil={csv(OIL)}&water={csv(WATER)}')
-    map_src = f'/live/map?room=$room&zoom={MAP_ZOOM}&follow=0&center={MAP_CENTER[0]},{MAP_CENTER[1]}'
+    laps_src = (f'/live/laps?room=$room&race_min={race_min}&oil={csv(OIL)}&water={csv(WATER)}')
+    lat, lon = course['center']
+    map_src = f"/live/map?room=$room&zoom={course['zoom']}&follow=0&center={lat},{lon}"
     panels = [
         {'type': 'text', 'title': 'ラップタイム（この端末の時計で進む）', 'gridPos': pos(0, 0, 13, 11),
          'description': '周ごとのラップタイム（新しい周が上）。ベストは紫、ベストより1割以上遅い周（ピット・給油・黄旗など）は灰色。'
                         '油温・水温・最高速はその周に届いた値の最大（LTEで約1秒に1回なので、最高速は数km/h低く出ることがある）。'
                         '「通信切れ」はその周の通過が届かなかった周（ロガーは記録している）。'
-                        f'経過・残りは、ラップのリセット後に最初にコントロールラインを通ってから{RACE_MIN}分で数える。'
+                        f'{clock}'
                         f'油温{OIL[0]}℃で黄（注意）・{OIL[1]}℃でオレンジ（クーリング開始）・{OIL[2]}℃で赤（ピットイン）、'
                         f'水温は{WATER[0]}・{WATER[1]}・{WATER[2]}℃',
          'options': frame(laps_src)},
@@ -154,7 +167,7 @@ def build(live):
     for n, p in enumerate(panels + detail, 1):
         p['id'] = n
     return {
-        'uid': 'sugo-live', 'title': 'SUGO 120分耐久 Live', 'tags': ['ecorun', 'sugo'],
+        'uid': course['uid'], 'title': course['title'], 'tags': ['ecorun', course['tag']],
         'timezone': 'browser', 'editable': False, 'graphTooltip': 1,
         'time': {'from': 'now-30m', 'to': 'now'},
         # 10 s: the polled panels here change slowly; the laps, map and G are pushed.
@@ -162,12 +175,15 @@ def build(live):
         'schemaVersion': live.get('schemaVersion', 39),
         # The NCEC's own rooms only (vehicles.py), not the eco-run cars'
         'templating': {'list': [vehicles.sugo_variable()]},
-        'links': vehicles.links('sugo-live'),
+        'links': vehicles.links(course['uid']),
         'panels': panels,
     }
 
 
 if __name__ == '__main__':
     live = json.loads(LIVE.read_text(encoding='utf-8'))
-    OUT.write_text(json.dumps(build(live.get('dashboard', live)), ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    print(f'wrote {OUT}')
+    for course in COURSES:
+        out = HERE / f"{course['uid']}.json"
+        out.write_text(json.dumps(build(live.get('dashboard', live), course), ensure_ascii=False, indent=2) + '\n',
+                       encoding='utf-8')
+        print(f'wrote {out}')
