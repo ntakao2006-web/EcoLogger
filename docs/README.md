@@ -44,6 +44,7 @@
 ## `docs/design/` — 仕様・設計
 
 - `docs/design/cost_comparison_20261119.md`：**原価の集計とAiMとの比べ**（2026-11-19、方針書`PRINCIPLES.md`の基準を確かめるため）。自作1台分は約8.8万円（幅7.6万〜10.5万円）、同じ機能のAiMは最低限で約63万円・いちばん近い構成で約93万円（LTEのライブ表示はAiMに無い）。詳しい表は同じ名前の`_ecologger.md`（自作の部品表、4割が見積もり・推定）と`_aim.md`（AiMの見積もり、出どころのURLつき）
+- `docs/design/cost_comparison_20261125_vbox.md`：**同じ機能をVBOX（Racelogic）で組んだ見積もりと、自作・VBOX・AiMの構成の比べ**（2026-11-25）。最低限で約45万円・いちばん近い構成で約77万円（英国の定価からの推定。日本の値段は見積もり制）。VBOXにはIMU・回転や温度を出せる画面・LTEのライブ表示が無い
 - `docs/design/lineage_racecapture.md`：**RaceCaptureからの系譜**（何を使って始め、いつ何を自前に置き換えたか）と、Ver.2のソフトに公式ファーム・公式アプリ・Ver.1のコードの写しが無いかを突き合わせた結果、ライセンスの扱いの案（SP-9-1〜9-3、2026-11-13。決めるのはユーザー）
 - `docs/design/pc_app_requirements.md`：PCの道具が前提にしているもの（Pythonの版・外のパッケージ・adb・ssh・ffmpeg）の一覧と、ほかの人のPCへの入れ方の案（SP-3-10、2026-11-13。pip用の一覧は`tools/requirements.txt`）
 - `docs/design/ecologger_phone_mock.html`：**スマホで開くピット用の入口（自宅のサーバーのページ）の案の見本**（SP-6-1、2026-11-13。動かない。数字は例）。場面（準備中・ピット・走行中・油温の警告・値が届かない）と見ている人（見るだけ・係）を切り替えて確かめる。Claudeのページにも載せてある
