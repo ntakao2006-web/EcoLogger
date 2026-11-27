@@ -72,6 +72,7 @@ RaceCapture互換の車載データロガーを自作するプロジェクト。
 - `EcoCapture-Web/`：UNO Q上のEcoCapture（設定・ログ管理・Podium送信`podium.py`）
 - `android-logger/`：スマホのアプリ（エコランの車載画面、予備の車載画面「サーキット」）
 - `circuit/`：回路・基板（KiCad）。`datasheet/`：部品の資料
+- `mechanical/`：3Dプリント部品（OpenSCAD。寸法を変数で変えられる形で置く）。`gnss_rollbar_mount/`＝GNSSアンテナJCA002のロールバー用マウント
 - `ecorun/`：エコランチームの用事（記録表）
 - `outputs/`：確かめの記録（`<名前>_<日付>/`）
 - `archive/`：閉じた系統の資料（ダッシュカム・通話・Phase 0・カート）。消さずにここへ移す
